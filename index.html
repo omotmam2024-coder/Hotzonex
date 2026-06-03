@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Hotzonex WiFi — Automated Business Tracker</title>
+
+<!-- React + Babel + Supabase via CDN -->
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:#0a0e14;
+    --bg-2:#0f1620;
+    --panel:#121b27;
+    --panel-2:#172230;
+    --line:#22303f;
+    --line-soft:#1a2632;
+    --text:#e7eef5;
+    --muted:#7d909f;
+    --muted-2:#5a6c7a;
+    --signal:#21e6c1;      /* wifi teal */
+    --signal-dim:#15a085;
+    --gold:#f6c453;        /* profit */
+    --rose:#ff6b6b;        /* expense */
+    --blue:#5aa9ff;        /* income */
+    --radius:16px;
+    --shadow:0 18px 50px -20px rgba(0,0,0,.7);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:
+      radial-gradient(900px 500px at 85% -8%, rgba(33,230,193,.10), transparent 60%),
+      radial-gradient(700px 500px at -5% 110%, rgba(90,169,255,.08), transparent 55%),
+      var(--bg);
+    color:var(--text);
+    font-family:'IBM Plex Sans',system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  .mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+  .display{font-family:'Sora',sans-serif}
+  button{font-family:inherit;cursor:pointer}
+  input,select{font-family:inherit}
+  ::selection{background:var(--signal);color:#04130f}
+
+  /* ---------- shared bits ---------- */
+  .btn{
+    border:1px solid var(--line); background:var(--panel-2); color:var(--text);
+    padding:11px 18px; border-radius:11px; font-weight:600; font-size:14px;
+    transition:.18s; display:inline-flex; align-items:center; gap:8px;
+  }
+  .btn:hover{border-color:var(--signal-dim); transform:translateY(-1px)}
+  .btn.primary{
+    background:linear-gradient(120deg,var(--signal),var(--signal-dim));
+    color:#04130f; border:none; box-shadow:0 8px 22px -8px rgba(33,230,193,.6);
+  }
+  .btn.primary:hover{filter:brightness(1.06)}
+  .btn.ghost{background:transparent}
+  .btn:disabled{opacity:.5; cursor:not-allowed; transform:none}
+
+  .field{display:flex;flex-direction:column;gap:7px}
+  .field label{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);font-weight:600}
+  .field input, .field select{
+    background:var(--bg-2); border:1px solid var(--line); color:var(--text);
+    padding:12px 14px; border-radius:11px; font-size:15px; outline:none; transition:.15s;
+    width:100%;
+  }
+  .field input:focus, .field select:focus{border-color:var(--signal); box-shadow:0 0 0 3px rgba(33,230,193,.12)}
+  .field input.num{font-family:'JetBrains Mono',monospace; text-align:right}
+
+  .card{background:var(--panel); border:1px solid var(--line-soft); border-radius:var(--radius)}
+  .pill{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:4px 10px;border-radius:999px}
+
+  .logo-dot{width:11px;height:11px;border-radius:50%;background:var(--signal);box-shadow:0 0 14px var(--signal)}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .live{animation:pulse 2s ease-in-out infinite}
+
+  .fade-in{animation:fade .45s ease both}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  table{border-collapse:collapse;width:100%}
+  th,td{padding:10px 12px;text-align:right;font-size:14px;border-bottom:1px solid var(--line-soft)}
+  th:first-child,td:first-child{text-align:left}
+  thead th{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:600;border-bottom:1px solid var(--line)}
+  tbody tr:hover{background:var(--panel-2)}
+  .row-week{background:var(--bg-2);font-weight:700}
+  .row-week td{color:var(--signal)}
+  .row-total{background:rgba(33,230,193,.06);font-weight:800}
+
+  ::-webkit-scrollbar{height:10px;width:10px}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px}
+  ::-webkit-scrollbar-track{background:transparent}
+
+  .spin{width:18px;height:18px;border:2px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:rot .7s linear infinite;display:inline-block}
+  @keyframes rot{to{transform:rotate(360deg)}}
+
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:50;
+    background:var(--panel-2);border:1px solid var(--signal-dim);color:var(--text);
+    padding:13px 20px;border-radius:12px;box-shadow:var(--shadow);font-size:14px;font-weight:600}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useMemo, useCallback, useRef } = React;
+
+/* ============================================================
+   small storage helper (safe if storage is unavailable)
+   ============================================================ */
+const store = {
+  get(k){ try { return window.localStorage.getItem(k); } catch(e){ return null; } },
+  set(k,v){ try { window.localStorage.setItem(k,v); } catch(e){} },
+  del(k){ try { window.localStorage.removeItem(k); } catch(e){} },
+};
+
+/* OPTIONAL: hardcode your Supabase project here to skip the setup screen.
+   Find these in Supabase -> Project Settings -> API                        */
+const HARDCODED_URL = "";   // e.g. "https://abcd.supabase.co"
+const HARDCODED_KEY = "";   // the "anon / public" key
+
+const MONTHS = ["January","February","March","April","May","June",
+  "July","August","September","October","November","December"];
+
+const fmt = (n) => {
+  const v = Number(n||0);
+  return v.toLocaleString("en-US",{maximumFractionDigits:0});
+};
+const ssp = (n) => "SSP " + fmt(n);
+
+/* ============================================================
+   Sample 2026 figures carried over from the original workbook
+   (income, internet, power/fuel, feeding, wages)
+   ============================================================ */
+const SEED = [
+  ["2026-01-01",240000,3000,20000,15000,30000],
+  ["2026-05-01",316000,0,30000,30000,30000],["2026-05-02",320000,0,30000,30000,30000],
+  ["2026-05-03",286000,0,30000,30000,30000],["2026-05-04",305000,0,30000,30000,30000],
+  ["2026-05-05",329000,0,30000,30000,30000],["2026-05-06",341000,0,30000,30000,30000],
+  ["2026-05-07",279000,0,30000,30000,30000],["2026-05-08",311000,0,30000,30000,30000],
+  ["2026-05-09",286500,0,30000,30000,30000],["2026-05-10",384000,0,24000,30000,30000],
+  ["2026-05-11",228500,0,30000,30000,30000],["2026-05-12",291000,0,30000,30000,30000],
+  ["2026-05-13",328000,0,30000,30000,30000],["2026-05-14",347000,0,30000,30000,30000],
+  ["2026-05-15",286000,0,30000,30000,30000],["2026-05-16",321000,0,30000,30000,30000],
+  ["2026-05-17",283000,0,25000,30000,30000],["2026-05-18",301000,0,25000,30000,30000],
+  ["2026-05-19",259000,0,25000,30000,30000],["2026-05-20",279000,0,25000,30000,30000],
+  ["2026-05-21",302500,0,25000,30000,30000],["2026-05-22",292000,0,25000,30000,30000],
+  ["2026-05-23",303500,0,25000,30000,30000],["2026-05-24",267500,0,25000,30000,30000],
+  ["2026-05-25",364500,0,25000,30000,30000],["2026-05-26",333000,0,25000,30000,30000],
+  ["2026-05-27",350500,0,25000,30000,30000],["2026-05-28",429500,0,25000,30000,30000],
+  ["2026-05-29",380000,0,25000,30000,30000],["2026-05-30",374500,0,25000,30000,30000],
+  ["2026-05-31",434000,0,25000,30000,30000],
+  ["2026-06-01",375000,0,25000,30000,30000],
+];
+
+/* ============================================================
+   Supabase client management
+   ============================================================ */
+function getSavedConfig(){
+  if (HARDCODED_URL && HARDCODED_KEY) return { url:HARDCODED_URL, key:HARDCODED_KEY };
+  const url = store.get("hzx_url"), key = store.get("hzx_key");
+  return (url && key) ? { url, key } : null;
+}
+function makeClient(cfg){
+  return window.supabase.createClient(cfg.url, cfg.key, {
+    auth:{ persistSession:true, autoRefreshToken:true }
+  });
+}
+
+/* ============================================================
+   ICONS (inline svg)
+   ============================================================ */
+const Ic = {
+  wifi:(p)=> <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" {...p}><path d="M5 12.5a10 10 0 0 1 14 0"/><path d="M8.5 16a5 5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1" fill="currentColor" stroke="none"/><path d="M1.5 9a16 16 0 0 1 21 0"/></svg>,
+  grid:(p)=> <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" {...p}><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>,
+  plus:(p)=> <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" {...p}><path d="M12 5v14M5 12h14"/></svg>,
+  cal:(p)=> <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" {...p}><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>,
+  chart:(p)=> <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" {...p}><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>,
+  out:(p)=> <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>,
+  edit:(p)=> <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>,
+  trash:(p)=> <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M10 11v6M14 11v6"/></svg>,
+};
+
+/* ============================================================
+   SETUP SCREEN — enter Supabase credentials
+   ============================================================ */
+function Setup({ onSave }){
+  const [url,setUrl] = useState("");
+  const [key,setKey] = useState("");
+  const ok = url.trim().startsWith("http") && key.trim().length > 20;
+  return (
+    <Centered>
+      <div className="card fade-in" style={{maxWidth:520,width:"100%",padding:"36px 34px"}}>
+        <Brand/>
+        <h2 className="display" style={{margin:"22px 0 6px",fontSize:22}}>Connect your database</h2>
+        <p style={{color:"var(--muted)",fontSize:14,lineHeight:1.6,marginTop:0}}>
+          Paste the API details from your Supabase project
+          (<span className="mono">Project Settings → API</span>). They’re stored only in this browser.
+        </p>
+        <div style={{display:"flex",flexDirection:"column",gap:16,marginTop:18}}>
+          <div className="field">
+            <label>Project URL</label>
+            <input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://xxxx.supabase.co"/>
+          </div>
+          <div className="field">
+            <label>Anon public key</label>
+            <input value={key} onChange={e=>setKey(e.target.value)} placeholder="eyJhbGciOi..."/>
+          </div>
+          <button className="btn primary" disabled={!ok}
+            onClick={()=>{ store.set("hzx_url",url.trim()); store.set("hzx_key",key.trim()); onSave({url:url.trim(),key:key.trim()}); }}>
+            Connect
+          </button>
+          <p style={{color:"var(--muted-2)",fontSize:12.5,lineHeight:1.6,margin:0}}>
+            First time? Run the included <span className="mono">schema.sql</span> in the Supabase SQL editor to create the tables.
+          </p>
+        </div>
+      </div>
+    </Centered>
+  );
+}
+
+/* ============================================================
+   AUTH SCREEN
+   ============================================================ */
+function Auth({ client, onReset }){
+  const [mode,setMode] = useState("signin");
+  const [email,setEmail] = useState("");
+  const [pw,setPw] = useState("");
+  const [busy,setBusy] = useState(false);
+  const [msg,setMsg] = useState(null);
+  const [err,setErr] = useState(null);
+
+  async function submit(){
+    setErr(null); setMsg(null); setBusy(true);
+    try{
+      if(mode==="signin"){
+        const { error } = await client.auth.signInWithPassword({ email, password:pw });
+        if(error) throw error;
+      } else {
+        const { data, error } = await client.auth.signUp({ email, password:pw });
+        if(error) throw error;
+        if(data?.user && !data?.session)
+          setMsg("Account created. Check your email to confirm, then sign in.");
+        else setMsg("Account created.");
+        setMode("signin");
+      }
+    }catch(e){ setErr(e.message || "Something went wrong"); }
+    finally{ setBusy(false); }
+  }
+
+  return (
+    <Centered>
+      <div className="card fade-in" style={{maxWidth:430,width:"100%",padding:"36px 34px"}}>
+        <Brand/>
+        <h2 className="display" style={{margin:"22px 0 4px",fontSize:23}}>
+          {mode==="signin" ? "Sign in" : "Create account"}
+        </h2>
+        <p style={{color:"var(--muted)",fontSize:14,marginTop:0}}>
+          Access to the tracker is protected — please authenticate.
+        </p>
+
+        <div style={{display:"flex",flexDirection:"column",gap:14,marginTop:20}}>
+          <div className="field">
+            <label>Email</label>
+            <input type="email" value={email} onChange={e=>setEmail(e.target.value)}
+              onKeyDown={e=>e.key==="Enter"&&submit()} placeholder="you@business.com"/>
+          </div>
+          <div className="field">
+            <label>Password</label>
+            <input type="password" value={pw} onChange={e=>setPw(e.target.value)}
+              onKeyDown={e=>e.key==="Enter"&&submit()} placeholder="••••••••"/>
+          </div>
+
+          {err && <div style={{color:"var(--rose)",fontSize:13.5,fontWeight:600}}>{err}</div>}
+          {msg && <div style={{color:"var(--signal)",fontSize:13.5,fontWeight:600}}>{msg}</div>}
+
+          <button className="btn primary" onClick={submit} disabled={busy||!email||!pw}>
+            {busy ? <span className="spin"/> : (mode==="signin"?"Sign in":"Sign up")}
+          </button>
+
+          <div style={{textAlign:"center",fontSize:13.5,color:"var(--muted)"}}>
+            {mode==="signin" ? "No account yet? " : "Already have an account? "}
+            <span style={{color:"var(--signal)",fontWeight:700,cursor:"pointer"}}
+              onClick={()=>{setMode(mode==="signin"?"signup":"signin");setErr(null);setMsg(null);}}>
+              {mode==="signin" ? "Create one" : "Sign in"}
+            </span>
+          </div>
+        </div>
+      </div>
+      <button className="btn ghost" style={{marginTop:18,fontSize:12.5,color:"var(--muted-2)"}}
+        onClick={onReset}>Change database connection</button>
+    </Centered>
+  );
+}
+
+/* ============================================================
+   APP SHELL (authenticated)
+   ============================================================ */
+function Shell({ client, session }){
+  const [view,setView]   = useState("dashboard");
+  const [year,setYear]   = useState(2026);
+  const [daily,setDaily] = useState([]);     // raw rows for the year
+  const [loading,setLoading] = useState(true);
+  const [toast,setToast] = useState(null);
+  const uid = session.user.id;
+
+  const flash = (t)=>{ setToast(t); setTimeout(()=>setToast(null),2600); };
+
+  const load = useCallback(async ()=>{
+    setLoading(true);
+    const { data, error } = await client
+      .from("daily_entries").select("*")
+      .eq("yr", year).order("entry_date");
+    if(!error) setDaily(data||[]);
+    setLoading(false);
+  },[client,year]);
+
+  useEffect(()=>{ load(); },[load]);
+
+  /* derived rollups (computed live from the same numbers the DB computes) */
+  const byMonth = useMemo(()=>{
+    const m = Array.from({length:12},(_,i)=>({mo:i+1,income:0,total_expenses:0,net_profit:0,days:0}));
+    daily.forEach(r=>{
+      const x = m[r.mo-1];
+      x.income+=Number(r.income); x.total_expenses+=Number(r.total_expenses);
+      x.net_profit+=Number(r.net_profit); x.days++;
+    });
+    return m;
+  },[daily]);
+
+  const annual = useMemo(()=> byMonth.reduce((a,m)=>({
+    income:a.income+m.income, total_expenses:a.total_expenses+m.total_expenses,
+    net_profit:a.net_profit+m.net_profit, days:a.days+m.days
+  }),{income:0,total_expenses:0,net_profit:0,days:0}),[byMonth]);
+
+  async function importSeed(){
+    const rows = SEED.map(([d,inc,net,pf,fe,wg])=>({
+      user_id:uid, entry_date:d, income:inc, internet_exp:net,
+      power_fuel:pf, feeding:fe, daily_wages:wg
+    }));
+    const { error } = await client.from("daily_entries")
+      .upsert(rows,{onConflict:"user_id,entry_date"});
+    if(error) flash("Import failed: "+error.message);
+    else { flash("Imported "+rows.length+" days from the workbook"); load(); }
+  }
+
+  const nav = [
+    ["dashboard","Dashboard",Ic.grid],
+    ["entry","Daily Entry",Ic.plus],
+    ["monthly","Monthly",Ic.cal],
+    ["annual","Annual",Ic.chart],
+  ];
+
+  return (
+    <div style={{minHeight:"100vh",display:"flex",flexDirection:"column"}}>
+      {/* top bar */}
+      <header style={{
+        display:"flex",alignItems:"center",justifyContent:"space-between",
+        padding:"16px 26px",borderBottom:"1px solid var(--line)",
+        position:"sticky",top:0,zIndex:20,backdropFilter:"blur(10px)",
+        background:"rgba(10,14,20,.72)"}}>
+        <Brand small/>
+        <div style={{display:"flex",alignItems:"center",gap:14}}>
+          <span className="pill" style={{background:"rgba(33,230,193,.12)",color:"var(--signal)"}}>
+            <span className="live" style={{marginRight:6}}>●</span>Live · Supabase
+          </span>
+          <select value={year} onChange={e=>setYear(Number(e.target.value))}
+            style={{background:"var(--panel-2)",color:"var(--text)",border:"1px solid var(--line)",
+              borderRadius:10,padding:"8px 12px",fontWeight:600}}>
+            {[2025,2026,2027].map(y=><option key={y} value={y}>{y}</option>)}
+          </select>
+          <div title={session.user.email} style={{
+            width:36,height:36,borderRadius:"50%",display:"grid",placeItems:"center",
+            background:"linear-gradient(135deg,var(--signal),var(--blue))",color:"#04130f",
+            fontWeight:800,fontSize:14}}>
+            {session.user.email[0].toUpperCase()}
+          </div>
+          <button className="btn ghost" style={{padding:"9px 12px"}} title="Sign out"
+            onClick={()=>client.auth.signOut()}><Ic.out/></button>
+        </div>
+      </header>
+
+      <div style={{display:"flex",flex:1,minHeight:0}}>
+        {/* sidebar */}
+        <nav style={{width:216,borderRight:"1px solid var(--line)",padding:"22px 14px",
+          display:"flex",flexDirection:"column",gap:6}}>
+          {nav.map(([k,label,Icon])=>(
+            <button key={k} onClick={()=>setView(k)} className="btn ghost"
+              style={{justifyContent:"flex-start",border:"none",
+                background: view===k ? "var(--panel-2)":"transparent",
+                color: view===k ? "var(--signal)":"var(--muted)",fontWeight:600}}>
+              <Icon/> {label}
+            </button>
+          ))}
+          <div style={{flex:1}}/>
+          <button className="btn ghost" style={{justifyContent:"flex-start",fontSize:13,color:"var(--muted-2)"}}
+            onClick={importSeed}>Import 2026 workbook data</button>
+        </nav>
+
+        {/* content */}
+        <main style={{flex:1,minWidth:0,padding:"26px 30px",overflow:"auto"}}>
+          {loading
+            ? <div style={{display:"grid",placeItems:"center",height:"60vh",color:"var(--muted)"}}>
+                <span className="spin" style={{borderTopColor:"var(--signal)"}}/></div>
+            : <div className="fade-in" key={view}>
+                {view==="dashboard" && <Dashboard year={year} annual={annual} byMonth={byMonth} daily={daily}/>}
+                {view==="entry"     && <DailyEntry client={client} uid={uid} daily={daily} year={year}
+                                          onSaved={(t)=>{flash(t);load();}}/>}
+                {view==="monthly"   && <Monthly daily={daily} year={year}/>}
+                {view==="annual"    && <Annual byMonth={byMonth} annual={annual} year={year}/>}
+              </div>}
+        </main>
+      </div>
+
+      {toast && <div className="toast fade-in">{toast}</div>}
+    </div>
+  );
+}
+
+/* ============================================================
+   DASHBOARD
+   ============================================================ */
+function Dashboard({ year, annual, byMonth, daily }){
+  const margin = annual.income>0 ? (annual.net_profit/annual.income*100) : 0;
+  const recent = [...daily].reverse().slice(0,6);
+  return (
+    <div>
+      <PageHead title={"Business overview"} sub={year+" · Hotzonex WiFi"}/>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))",gap:16}}>
+        <Kpi label="Total Income" value={annual.income} accent="var(--blue)"/>
+        <Kpi label="Total Expenses" value={annual.total_expenses} accent="var(--rose)"/>
+        <Kpi label="Net Profit" value={annual.net_profit} accent="var(--gold)" big/>
+        <Kpi label="Profit Margin" value={margin} suffix="%" accent="var(--signal)" raw/>
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"1.6fr 1fr",gap:18,marginTop:20}}>
+        <div className="card" style={{padding:"22px 24px"}}>
+          <SectionTitle>Monthly net profit</SectionTitle>
+          <BarChart data={byMonth}/>
+        </div>
+        <div className="card" style={{padding:"22px 24px"}}>
+          <SectionTitle>Recent days</SectionTitle>
+          {recent.length===0
+            ? <Empty/>
+            : <div style={{display:"flex",flexDirection:"column",gap:2,marginTop:6}}>
+                {recent.map(r=>(
+                  <div key={r.id} style={{display:"flex",justifyContent:"space-between",
+                    alignItems:"center",padding:"10px 0",borderBottom:"1px solid var(--line-soft)"}}>
+                    <div>
+                      <div style={{fontWeight:600,fontSize:14}}>{r.entry_date}</div>
+                      <div className="mono" style={{fontSize:12,color:"var(--muted)"}}>
+                        in {fmt(r.income)} · exp {fmt(r.total_expenses)}</div>
+                    </div>
+                    <div className="mono" style={{fontWeight:700,
+                      color: r.net_profit>=0?"var(--gold)":"var(--rose)"}}>
+                      {fmt(r.net_profit)}</div>
+                  </div>
+                ))}
+              </div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   DAILY ENTRY — inputs; DB auto-computes totals
+   ============================================================ */
+function DailyEntry({ client, uid, daily, year, onSaved }){
+  const today = new Date().toISOString().slice(0,10);
+  const init = today.startsWith(String(year)) ? today : year+"-01-01";
+  const [date,setDate] = useState(init);
+  const [f,setF] = useState({income:"",internet_exp:"",power_fuel:"",feeding:"",daily_wages:""});
+  const [busy,setBusy] = useState(false);
+  const [confirmDel,setConfirmDel] = useState(false);  // delete on the open form
+  const [rowDel,setRowDel] = useState(null);           // delete from the list (entry id)
+  const formRef = useRef(null);
+
+  const blank = {income:"",internet_exp:"",power_fuel:"",feeding:"",daily_wages:""};
+
+  // preload existing record whenever the chosen date / data changes
+  useEffect(()=>{
+    const ex = daily.find(r=>r.entry_date===date);
+    setF(ex
+      ? {income:ex.income,internet_exp:ex.internet_exp,power_fuel:ex.power_fuel,
+         feeding:ex.feeding,daily_wages:ex.daily_wages}
+      : blank);
+    setConfirmDel(false);
+  },[date,daily]);
+
+  const num = (v)=>Number(v||0);
+  const totalExp = num(f.internet_exp)+num(f.power_fuel)+num(f.feeding)+num(f.daily_wages);
+  const net = num(f.income)-totalExp;
+  const current = daily.find(r=>r.entry_date===date);
+  const exists = !!current;
+
+  async function save(){
+    setBusy(true);
+    const { error } = await client.from("daily_entries").upsert({
+      user_id:uid, entry_date:date,
+      income:num(f.income), internet_exp:num(f.internet_exp), power_fuel:num(f.power_fuel),
+      feeding:num(f.feeding), daily_wages:num(f.daily_wages)
+    },{onConflict:"user_id,entry_date"});
+    setBusy(false);
+    onSaved(error ? ("Error: "+error.message) : (exists?"Day updated":"Day saved"));
+  }
+
+  async function remove(id, label){
+    setBusy(true);
+    const { error } = await client.from("daily_entries").delete().eq("id", id);
+    setBusy(false);
+    setConfirmDel(false); setRowDel(null);
+    if(!error && label) setF(blank);
+    onSaved(error ? ("Error: "+error.message) : "Entry deleted"+(label?(" — "+label):""));
+  }
+
+  function editRow(r){
+    setDate(r.entry_date);
+    if(formRef.current) formRef.current.scrollIntoView({behavior:"smooth",block:"start"});
+  }
+
+  const inputs = [
+    ["income","Income (SSP)","var(--blue)"],
+    ["internet_exp","Internet Exp.","var(--rose)"],
+    ["power_fuel","Power / Fuel","var(--rose)"],
+    ["feeding","Feeding / Maintenance","var(--rose)"],
+    ["daily_wages","Daily Wages","var(--rose)"],
+  ];
+
+  const list = [...daily].sort((a,b)=>a.entry_date<b.entry_date?1:-1);
+
+  return (
+    <div style={{maxWidth:820}}>
+      <PageHead title="Daily entry" sub="Add, edit or delete a day — totals are calculated automatically"/>
+
+      {/* ---------- the form ---------- */}
+      <div className="card" style={{padding:"26px 28px"}} ref={formRef}>
+        <div style={{display:"flex",alignItems:"flex-end",justifyContent:"space-between",
+          gap:16,flexWrap:"wrap",marginBottom:22}}>
+          <div className="field" style={{maxWidth:240,marginBottom:0}}>
+            <label>Date</label>
+            <input type="date" value={date} min={year+"-01-01"} max={year+"-12-31"}
+              onChange={e=>setDate(e.target.value)}/>
+          </div>
+          <span className="pill" style={{background: exists?"rgba(246,196,83,.14)":"rgba(33,230,193,.12)",
+            color: exists?"var(--gold)":"var(--signal)"}}>
+            {exists ? "Editing existing day" : "New day"}
+          </span>
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:16}}>
+          {inputs.map(([k,label,c])=>(
+            <div className="field" key={k}>
+              <label style={{color:c}}>{label}</label>
+              <input className="num" inputMode="numeric" value={f[k]}
+                onChange={e=>setF({...f,[k]:e.target.value.replace(/[^\d.]/g,"")})}
+                placeholder="0"/>
+            </div>
+          ))}
+        </div>
+
+        <div style={{display:"flex",gap:16,marginTop:24,flexWrap:"wrap"}}>
+          <Computed label="Total Expenses" value={totalExp} color="var(--rose)"/>
+          <Computed label="Net Profit" value={net} color={net>=0?"var(--gold)":"var(--rose)"}/>
+        </div>
+
+        <div style={{display:"flex",alignItems:"center",gap:12,marginTop:24,flexWrap:"wrap"}}>
+          <button className="btn primary" onClick={save} disabled={busy}>
+            {busy ? <span className="spin"/> : (exists?<><Ic.edit/> Update day</>:<><Ic.plus/> Save day</>)}
+          </button>
+
+          {exists && !confirmDel &&
+            <button className="btn" style={{borderColor:"var(--rose)",color:"var(--rose)"}}
+              onClick={()=>setConfirmDel(true)} disabled={busy}>
+              <Ic.trash/> Delete</button>}
+
+          {exists && confirmDel &&
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <span style={{fontSize:13,color:"var(--rose)",fontWeight:600}}>Delete this day?</span>
+              <button className="btn" style={{background:"var(--rose)",border:"none",color:"#160606"}}
+                onClick={()=>remove(current.id, date)} disabled={busy}>Yes, delete</button>
+              <button className="btn ghost" onClick={()=>setConfirmDel(false)} disabled={busy}>Cancel</button>
+            </div>}
+
+          {!confirmDel &&
+            <button className="btn ghost" onClick={()=>setDate(init)} disabled={busy}
+              title="Reset to today">Clear</button>}
+        </div>
+      </div>
+
+      {/* ---------- saved entries with edit / delete ---------- */}
+      <div style={{marginTop:24}}>
+        <SectionTitle>Saved days · {year} ({list.length})</SectionTitle>
+        <div className="card" style={{padding:"6px 6px 8px",overflowX:"auto"}}>
+          {list.length===0
+            ? <Empty/>
+            : <table>
+                <thead><tr>
+                  <th>Date</th><th>Income</th><th>Total Exp.</th><th>Net Profit</th><th style={{textAlign:"right"}}>Actions</th>
+                </tr></thead>
+                <tbody>
+                  {list.map(r=>(
+                    <tr key={r.id} style={r.entry_date===date?{background:"rgba(246,196,83,.06)"}:null}>
+                      <td style={{fontWeight:600}}>{r.entry_date}</td>
+                      <td className="mono">{fmt(r.income)}</td>
+                      <td className="mono" style={{color:"var(--muted)"}}>{fmt(r.total_expenses)}</td>
+                      <td className="mono" style={{color:r.net_profit>=0?"var(--gold)":"var(--rose)",fontWeight:700}}>
+                        {fmt(r.net_profit)}</td>
+                      <td>
+                        {rowDel===r.id
+                          ? <span style={{display:"inline-flex",gap:8,alignItems:"center",justifyContent:"flex-end"}}>
+                              <button className="btn" style={{padding:"6px 10px",fontSize:12,background:"var(--rose)",border:"none",color:"#160606"}}
+                                onClick={()=>remove(r.id, r.entry_date)} disabled={busy}>Confirm</button>
+                              <button className="btn ghost" style={{padding:"6px 10px",fontSize:12}}
+                                onClick={()=>setRowDel(null)}>Cancel</button>
+                            </span>
+                          : <span style={{display:"inline-flex",gap:6,justifyContent:"flex-end"}}>
+                              <button className="btn ghost" style={{padding:"7px 9px"}} title="Edit"
+                                onClick={()=>editRow(r)}><Ic.edit/></button>
+                              <button className="btn ghost" style={{padding:"7px 9px",color:"var(--rose)"}} title="Delete"
+                                onClick={()=>setRowDel(r.id)}><Ic.trash/></button>
+                            </span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   MONTHLY — day-by-day grid with weekly + monthly totals
+   ============================================================ */
+function Monthly({ daily, year }){
+  const [mo,setMo] = useState(()=>{ const m=new Date().getMonth()+1; return m; });
+  const rows = daily.filter(r=>r.mo===mo).sort((a,b)=>a.dy-b.dy);
+  const daysInMonth = new Date(year,mo,0).getDate();
+
+  // build week buckets matching the workbook (1-7, 8-14, ...)
+  const weeks = [];
+  for(let d=1; d<=daysInMonth; d++){
+    const wk = Math.floor((d-1)/7);
+    (weeks[wk]=weeks[wk]||[]).push(d);
+  }
+  const rec = (d)=> rows.find(r=>r.dy===d);
+  const sum = (arr,key)=>arr.reduce((a,d)=>a+Number(rec(d)?.[key]||0),0);
+  const monthTotal = (key)=>rows.reduce((a,r)=>a+Number(r[key]),0);
+
+  const cols = ["income","internet_exp","power_fuel","feeding","daily_wages","total_expenses","net_profit"];
+  const head = ["Date","Income","Internet","Power/Fuel","Feeding","Wages","Total Exp.","Net Profit"];
+
+  return (
+    <div>
+      <PageHead title="Monthly tracking" sub={MONTHS[mo-1]+" "+year}/>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:16}}>
+        {MONTHS.map((m,i)=>(
+          <button key={m} onClick={()=>setMo(i+1)} className="btn ghost"
+            style={{padding:"7px 13px",fontSize:13,
+              background: mo===i+1?"var(--panel-2)":"transparent",
+              color: mo===i+1?"var(--signal)":"var(--muted)",
+              borderColor: mo===i+1?"var(--signal-dim)":"var(--line)"}}>
+            {m.slice(0,3)}</button>
+        ))}
+      </div>
+
+      <div className="card" style={{padding:"6px 6px 10px",overflowX:"auto"}}>
+        <table>
+          <thead><tr>{head.map(h=><th key={h}>{h}</th>)}</tr></thead>
+          <tbody>
+            {weeks.map((days,wi)=>(
+              <React.Fragment key={wi}>
+                {days.map(d=>{
+                  const r = rec(d);
+                  return (
+                    <tr key={d}>
+                      <td style={{color:"var(--muted)"}}>{MONTHS[mo-1].slice(0,3)} {d}</td>
+                      {cols.map(c=>(
+                        <td key={c} className="mono"
+                          style={{color:c==="net_profit"?(Number(r?.[c]||0)>=0?"var(--gold)":"var(--rose)")
+                            : c==="income"?"var(--text)":"var(--muted)"}}>
+                          {r ? fmt(r[c]) : "—"}</td>
+                      ))}
+                    </tr>
+                  );
+                })}
+                <tr className="row-week">
+                  <td>Week {wi+1} total</td>
+                  {cols.map(c=><td key={c} className="mono">{fmt(sum(days,c))}</td>)}
+                </tr>
+              </React.Fragment>
+            ))}
+            <tr className="row-total">
+              <td>{MONTHS[mo-1]} total</td>
+              {cols.map(c=>(
+                <td key={c} className="mono"
+                  style={{color:c==="net_profit"?"var(--gold)":c==="income"?"var(--blue)":undefined}}>
+                  {fmt(monthTotal(c))}</td>
+              ))}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   ANNUAL SUMMARY
+   ============================================================ */
+function Annual({ byMonth, annual, year }){
+  return (
+    <div>
+      <PageHead title="Annual summary" sub={year+" · automated roll-up of all twelve months"}/>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1.1fr",gap:18}}>
+        <div className="card" style={{padding:"6px 6px 10px"}}>
+          <table>
+            <thead><tr><th>Month</th><th>Income</th><th>Expenses</th><th>Profit</th></tr></thead>
+            <tbody>
+              {byMonth.map(m=>(
+                <tr key={m.mo}>
+                  <td>{MONTHS[m.mo-1]}</td>
+                  <td className="mono">{fmt(m.income)}</td>
+                  <td className="mono" style={{color:"var(--muted)"}}>{fmt(m.total_expenses)}</td>
+                  <td className="mono" style={{color:m.net_profit>=0?"var(--gold)":"var(--rose)"}}>
+                    {fmt(m.net_profit)}</td>
+                </tr>
+              ))}
+              <tr className="row-total">
+                <td>Annual total</td>
+                <td className="mono" style={{color:"var(--blue)"}}>{fmt(annual.income)}</td>
+                <td className="mono" style={{color:"var(--rose)"}}>{fmt(annual.total_expenses)}</td>
+                <td className="mono" style={{color:"var(--gold)"}}>{fmt(annual.net_profit)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div className="card" style={{padding:"22px 24px"}}>
+          <SectionTitle>Income vs profit by month</SectionTitle>
+          <BarChart data={byMonth} dual/>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   Reusable presentational pieces
+   ============================================================ */
+function Centered({children}){
+  return <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",
+    alignItems:"center",justifyContent:"center",padding:24}}>{children}</div>;
+}
+function Brand({small}){
+  return (
+    <div style={{display:"flex",alignItems:"center",gap:12}}>
+      <div style={{width:small?34:42,height:small?34:42,borderRadius:12,
+        background:"linear-gradient(135deg,var(--signal),var(--signal-dim))",
+        display:"grid",placeItems:"center",color:"#04130f",boxShadow:"0 8px 22px -8px rgba(33,230,193,.6)"}}>
+        <Ic.wifi/>
+      </div>
+      <div>
+        <div className="display" style={{fontWeight:800,fontSize:small?17:20,letterSpacing:"-.01em"}}>
+          HOTZONEX <span style={{color:"var(--signal)"}}>WiFi</span></div>
+        <div style={{fontSize:11,color:"var(--muted)",letterSpacing:".12em",textTransform:"uppercase"}}>
+          Automated Tracker</div>
+      </div>
+    </div>
+  );
+}
+function PageHead({title,sub}){
+  return <div style={{marginBottom:22}}>
+    <h1 className="display" style={{margin:0,fontSize:26,letterSpacing:"-.02em"}}>{title}</h1>
+    <p style={{margin:"4px 0 0",color:"var(--muted)",fontSize:14}}>{sub}</p>
+  </div>;
+}
+function SectionTitle({children}){
+  return <div style={{fontSize:12,letterSpacing:".06em",textTransform:"uppercase",
+    color:"var(--muted)",fontWeight:600,marginBottom:14}}>{children}</div>;
+}
+function Kpi({label,value,accent,suffix,big,raw}){
+  return (
+    <div className="card" style={{padding:"20px 22px",position:"relative",overflow:"hidden"}}>
+      <div style={{position:"absolute",inset:0,background:`radial-gradient(120px 80px at 100% 0,${accent}22,transparent 70%)`}}/>
+      <div style={{fontSize:12.5,color:"var(--muted)",fontWeight:600,position:"relative"}}>{label}</div>
+      <div className="mono" style={{fontSize:big?30:25,fontWeight:700,marginTop:8,color:accent,position:"relative",letterSpacing:"-.01em"}}>
+        {raw ? value.toFixed(1) : fmt(value)}{suffix||""}
+      </div>
+      {!raw && !suffix && <div style={{fontSize:11,color:"var(--muted-2)",marginTop:2,position:"relative"}}>SSP</div>}
+    </div>
+  );
+}
+function Computed({label,value,color}){
+  return (
+    <div style={{flex:1,minWidth:200,background:"var(--bg-2)",border:"1px solid var(--line)",
+      borderRadius:12,padding:"16px 18px"}}>
+      <div style={{fontSize:12,color:"var(--muted)",fontWeight:600}}>{label}</div>
+      <div className="mono" style={{fontSize:24,fontWeight:700,color,marginTop:4}}>{ssp(value)}</div>
+      <div style={{fontSize:11,color:"var(--muted-2)",marginTop:2}}>auto-calculated</div>
+    </div>
+  );
+}
+function Empty(){
+  return <div style={{color:"var(--muted-2)",fontSize:14,padding:"30px 0",textAlign:"center"}}>
+    No data yet. Add days in <b style={{color:"var(--muted)"}}>Daily Entry</b>.</div>;
+}
+
+/* lightweight custom SVG bar chart */
+function BarChart({data,dual}){
+  const W=560,H=220,pad=30,bw=W/12;
+  const max = Math.max(1,...data.map(d=>Math.max(d.net_profit,dual?d.income:0,0)));
+  const y = (v)=> H-pad-(Math.max(0,v)/max)*(H-pad*2);
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} style={{width:"100%",height:"auto"}}>
+      {[0,.5,1].map(t=>(
+        <line key={t} x1={pad} x2={W} y1={pad+(H-pad*2)*(1-t)} y2={pad+(H-pad*2)*(1-t)}
+          stroke="var(--line-soft)" strokeWidth="1"/>
+      ))}
+      {data.map((d,i)=>{
+        const cx = i*bw+pad/2;
+        return (
+          <g key={i}>
+            {dual && <rect x={cx} y={y(d.income)} width={bw*0.34} height={H-pad-y(d.income)}
+              rx="2" fill="var(--blue)" opacity=".55"/>}
+            <rect x={cx+(dual?bw*0.38:bw*0.2)} y={y(d.net_profit)}
+              width={bw*0.34} height={Math.max(0,H-pad-y(d.net_profit))} rx="2" fill="var(--signal)"/>
+            <text x={cx+bw*0.32} y={H-10} fontSize="9" fill="var(--muted-2)" textAnchor="middle"
+              fontFamily="JetBrains Mono">{MONTHS[i].slice(0,1)}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+/* ============================================================
+   ROOT — wires config + auth gate + app
+   ============================================================ */
+function Root(){
+  const [cfg,setCfg]       = useState(getSavedConfig);
+  const [client,setClient] = useState(null);
+  const [session,setSession]= useState(null);
+  const [ready,setReady]   = useState(false);
+
+  useEffect(()=>{
+    if(!cfg){ setReady(true); return; }
+    let c;
+    try { c = makeClient(cfg); } catch(e){ setReady(true); return; }
+    setClient(c);
+    c.auth.getSession().then(({data})=>{ setSession(data.session); setReady(true); });
+    const { data:sub } = c.auth.onAuthStateChange((_e,s)=>setSession(s));
+    return ()=>sub.subscription.unsubscribe();
+  },[cfg]);
+
+  const resetConn = ()=>{ store.del("hzx_url"); store.del("hzx_key"); setSession(null); setClient(null); setCfg(null); };
+
+  if(!ready) return <Centered><span className="spin" style={{borderTopColor:"var(--signal)"}}/></Centered>;
+  if(!cfg || !client) return <Setup onSave={setCfg}/>;
+  if(!session) return <Auth client={client} onReset={resetConn}/>;
+  return <Shell client={client} session={session}/>;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<Root/>);
+</script>
+</body>
+</html>
