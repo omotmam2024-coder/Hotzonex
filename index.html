@@ -15,6 +15,18 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 
+<!-- ────────────────────────────────────────────────────────────────────
+     SUPABASE CONNECTION  —  paste your two values here once.
+     Find them in Supabase → Project Settings → API.
+     Once filled in, the app opens straight to the LOGIN page.
+──────────────────────────────────────────────────────────────────────── -->
+<script>
+  window.HZX_CONFIG = {
+    url: "https://gyxyivbxrheyoisermei.supabase.co",
+    key: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5eHlpdmJ4cmhleW9pc2VybWVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwNTgxNzcsImV4cCI6MjA5NTYzNDE3N30.Tb_ExY6Uua2oVXwE_tl2GpI9phu1nS9RiZlYKOd5n1g"
+  };
+</script>
+
 <style>
   :root{
     --bg:#0a0e14;
@@ -114,20 +126,6 @@
 <script type="text/babel" data-presets="react">
 const { useState, useEffect, useMemo, useCallback, useRef } = React;
 
-/* ============================================================
-   small storage helper (safe if storage is unavailable)
-   ============================================================ */
-const store = {
-  get(k){ try { return window.localStorage.getItem(k); } catch(e){ return null; } },
-  set(k,v){ try { window.localStorage.setItem(k,v); } catch(e){} },
-  del(k){ try { window.localStorage.removeItem(k); } catch(e){} },
-};
-
-/* OPTIONAL: hardcode your Supabase project here to skip the setup screen.
-   Find these in Supabase -> Project Settings -> API                        */
-const HARDCODED_URL = "";   // e.g. "https://abcd.supabase.co"
-const HARDCODED_KEY = "";   // the "anon / public" key
-
 const MONTHS = ["January","February","March","April","May","June",
   "July","August","September","October","November","December"];
 
@@ -163,12 +161,11 @@ const SEED = [
 ];
 
 /* ============================================================
-   Supabase client management
+   Supabase client — config comes from window.HZX_CONFIG (top of file)
    ============================================================ */
-function getSavedConfig(){
-  if (HARDCODED_URL && HARDCODED_KEY) return { url:HARDCODED_URL, key:HARDCODED_KEY };
-  const url = store.get("hzx_url"), key = store.get("hzx_key");
-  return (url && key) ? { url, key } : null;
+function getConfig(){
+  const c = window.HZX_CONFIG || {};
+  return (c.url && c.key) ? { url:c.url, key:c.key } : null;
 }
 function makeClient(cfg){
   return window.supabase.createClient(cfg.url, cfg.key, {
@@ -191,47 +188,9 @@ const Ic = {
 };
 
 /* ============================================================
-   SETUP SCREEN — enter Supabase credentials
+   AUTH SCREEN  (login page)
    ============================================================ */
-function Setup({ onSave }){
-  const [url,setUrl] = useState("");
-  const [key,setKey] = useState("");
-  const ok = url.trim().startsWith("http") && key.trim().length > 20;
-  return (
-    <Centered>
-      <div className="card fade-in" style={{maxWidth:520,width:"100%",padding:"36px 34px"}}>
-        <Brand/>
-        <h2 className="display" style={{margin:"22px 0 6px",fontSize:22}}>Connect your database</h2>
-        <p style={{color:"var(--muted)",fontSize:14,lineHeight:1.6,marginTop:0}}>
-          Paste the API details from your Supabase project
-          (<span className="mono">Project Settings → API</span>). They’re stored only in this browser.
-        </p>
-        <div style={{display:"flex",flexDirection:"column",gap:16,marginTop:18}}>
-          <div className="field">
-            <label>Project URL</label>
-            <input value={url} onChange={e=>setUrl(e.target.value)} placeholder="https://xxxx.supabase.co"/>
-          </div>
-          <div className="field">
-            <label>Anon public key</label>
-            <input value={key} onChange={e=>setKey(e.target.value)} placeholder="eyJhbGciOi..."/>
-          </div>
-          <button className="btn primary" disabled={!ok}
-            onClick={()=>{ store.set("hzx_url",url.trim()); store.set("hzx_key",key.trim()); onSave({url:url.trim(),key:key.trim()}); }}>
-            Connect
-          </button>
-          <p style={{color:"var(--muted-2)",fontSize:12.5,lineHeight:1.6,margin:0}}>
-            First time? Run the included <span className="mono">schema.sql</span> in the Supabase SQL editor to create the tables.
-          </p>
-        </div>
-      </div>
-    </Centered>
-  );
-}
-
-/* ============================================================
-   AUTH SCREEN
-   ============================================================ */
-function Auth({ client, onReset }){
+function Auth({ client }){
   const [mode,setMode] = useState("signin");
   const [email,setEmail] = useState("");
   const [pw,setPw] = useState("");
@@ -296,8 +255,6 @@ function Auth({ client, onReset }){
           </div>
         </div>
       </div>
-      <button className="btn ghost" style={{marginTop:18,fontSize:12.5,color:"var(--muted-2)"}}
-        onClick={onReset}>Change database connection</button>
     </Centered>
   );
 }
@@ -473,7 +430,7 @@ function Dashboard({ year, annual, byMonth, daily }){
 }
 
 /* ============================================================
-   DAILY ENTRY — inputs; DB auto-computes totals
+   DAILY ENTRY — inputs; DB auto-computes totals; edit + delete
    ============================================================ */
 function DailyEntry({ client, uid, daily, year, onSaved }){
   const today = new Date().toISOString().slice(0,10);
@@ -845,29 +802,44 @@ function BarChart({data,dual}){
 }
 
 /* ============================================================
-   ROOT — wires config + auth gate + app
+   Small notice shown only if the config block is still empty
+   (you, the developer — never your users)
+   ============================================================ */
+function NeedsConfig(){
+  return (
+    <Centered>
+      <div className="card" style={{maxWidth:480,padding:"34px 32px"}}>
+        <Brand/>
+        <h2 className="display" style={{margin:"20px 0 6px",fontSize:20}}>One quick step</h2>
+        <p style={{color:"var(--muted)",fontSize:14,lineHeight:1.6,margin:0}}>
+          Open <span className="mono">index.html</span> and paste your Supabase
+          project URL and anon key into the <span className="mono">window.HZX_CONFIG</span>
+          block near the top of the file, then refresh this page.
+        </p>
+      </div>
+    </Centered>
+  );
+}
+
+/* ============================================================
+   ROOT — config (from top of file) -> login -> app
    ============================================================ */
 function Root(){
-  const [cfg,setCfg]       = useState(getSavedConfig);
-  const [client,setClient] = useState(null);
-  const [session,setSession]= useState(null);
-  const [ready,setReady]   = useState(false);
+  const cfg = getConfig();
+  const [client] = useState(()=> cfg ? makeClient(cfg) : null);
+  const [session,setSession] = useState(null);
+  const [ready,setReady] = useState(false);
 
   useEffect(()=>{
-    if(!cfg){ setReady(true); return; }
-    let c;
-    try { c = makeClient(cfg); } catch(e){ setReady(true); return; }
-    setClient(c);
-    c.auth.getSession().then(({data})=>{ setSession(data.session); setReady(true); });
-    const { data:sub } = c.auth.onAuthStateChange((_e,s)=>setSession(s));
+    if(!client){ setReady(true); return; }
+    client.auth.getSession().then(({data})=>{ setSession(data.session); setReady(true); });
+    const { data:sub } = client.auth.onAuthStateChange((_e,s)=>setSession(s));
     return ()=>sub.subscription.unsubscribe();
-  },[cfg]);
+  },[client]);
 
-  const resetConn = ()=>{ store.del("hzx_url"); store.del("hzx_key"); setSession(null); setClient(null); setCfg(null); };
-
+  if(!client) return <NeedsConfig/>;
   if(!ready) return <Centered><span className="spin" style={{borderTopColor:"var(--signal)"}}/></Centered>;
-  if(!cfg || !client) return <Setup onSave={setCfg}/>;
-  if(!session) return <Auth client={client} onReset={resetConn}/>;
+  if(!session) return <Auth client={client}/>;
   return <Shell client={client} session={session}/>;
 }
 
