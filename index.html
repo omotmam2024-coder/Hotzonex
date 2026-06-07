@@ -15,11 +15,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-<!-- ────────────────────────────────────────────────────────────────────
-     SUPABASE CONNECTION  —  paste your two values here once.
-     Find them in Supabase → Project Settings → API.
-     Once filled in, the app opens straight to the LOGIN page.
-──────────────────────────────────────────────────────────────────────── -->
 <script>
   window.HZX_CONFIG = {
     url: "https://gyxyivbxrheyoisermei.supabase.co",
@@ -38,11 +33,11 @@
     --text:#e7eef5;
     --muted:#7d909f;
     --muted-2:#5a6c7a;
-    --signal:#21e6c1;      /* wifi teal */
+    --signal:#21e6c1;
     --signal-dim:#15a085;
-    --gold:#f6c453;        /* profit */
-    --rose:#ff6b6b;        /* expense */
-    --blue:#5aa9ff;        /* income */
+    --gold:#f6c453;
+    --rose:#ff6b6b;
+    --blue:#5aa9ff;
     --radius:16px;
     --shadow:0 18px 50px -20px rgba(0,0,0,.7);
   }
@@ -64,7 +59,6 @@
   input,select{font-family:inherit}
   ::selection{background:var(--signal);color:#04130f}
 
-  /* ---------- shared bits ---------- */
   .btn{
     border:1px solid var(--line); background:var(--panel-2); color:var(--text);
     padding:11px 18px; border-radius:11px; font-weight:600; font-size:14px;
@@ -118,6 +112,17 @@
   .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:50;
     background:var(--panel-2);border:1px solid var(--signal-dim);color:var(--text);
     padding:13px 20px;border-radius:12px;box-shadow:var(--shadow);font-size:14px;font-weight:600}
+
+  /* ── auth-specific ── */
+  .auth-footer{
+    margin-top:18px;
+    padding-top:16px;
+    border-top:1px solid var(--line-soft);
+    font-size:12px;
+    color:var(--muted-2);
+    text-align:center;
+    line-height:1.6;
+  }
 </style>
 </head>
 <body>
@@ -135,10 +140,6 @@ const fmt = (n) => {
 };
 const ssp = (n) => "SSP " + fmt(n);
 
-/* ============================================================
-   Sample 2026 figures carried over from the original workbook
-   (income, internet, power/fuel, feeding, wages)
-   ============================================================ */
 const SEED = [
   ["2026-01-01",240000,3000,20000,15000,30000],
   ["2026-05-01",316000,0,30000,30000,30000],["2026-05-02",320000,0,30000,30000,30000],
@@ -160,22 +161,26 @@ const SEED = [
   ["2026-06-01",375000,0,25000,30000,30000],
 ];
 
-/* ============================================================
-   Supabase client — config comes from window.HZX_CONFIG (top of file)
-   ============================================================ */
+/* ── Supabase client ── */
 function getConfig(){
   const c = window.HZX_CONFIG || {};
   return (c.url && c.key) ? { url:c.url, key:c.key } : null;
 }
 function makeClient(cfg){
   return window.supabase.createClient(cfg.url, cfg.key, {
-    auth:{ persistSession:true, autoRefreshToken:true }
+    auth:{
+      persistSession: true,
+      autoRefreshToken: true,
+      /* ── KEY CHANGE ──
+         detectSessionInUrl:false prevents Supabase from reading
+         magic-link / OAuth tokens from the URL hash, keeping
+         auth strictly to email+password only.            */
+      detectSessionInUrl: false,
+    }
   });
 }
 
-/* ============================================================
-   ICONS (inline svg)
-   ============================================================ */
+/* ── ICONS ── */
 const Ic = {
   wifi:(p)=> <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" {...p}><path d="M5 12.5a10 10 0 0 1 14 0"/><path d="M8.5 16a5 5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1" fill="currentColor" stroke="none"/><path d="M1.5 9a16 16 0 0 1 21 0"/></svg>,
   grid:(p)=> <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" {...p}><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>,
@@ -185,34 +190,48 @@ const Ic = {
   out:(p)=> <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>,
   edit:(p)=> <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>,
   trash:(p)=> <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M10 11v6M14 11v6"/></svg>,
+  lock:(p)=> <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" {...p}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
 };
 
 /* ============================================================
-   AUTH SCREEN  (login page)
+   AUTH SCREEN  — email + password only, no anonymous/magic link
    ============================================================ */
 function Auth({ client }){
-  const [mode,setMode] = useState("signin");
+  const [mode,setMode]   = useState("signin");
   const [email,setEmail] = useState("");
-  const [pw,setPw] = useState("");
-  const [busy,setBusy] = useState(false);
-  const [msg,setMsg] = useState(null);
-  const [err,setErr] = useState(null);
+  const [pw,setPw]       = useState("");
+  const [busy,setBusy]   = useState(false);
+  const [msg,setMsg]     = useState(null);
+  const [err,setErr]     = useState(null);
 
   async function submit(){
     setErr(null); setMsg(null); setBusy(true);
     try{
-      if(mode==="signin"){
-        const { error } = await client.auth.signInWithPassword({ email, password:pw });
+      if(mode === "signin"){
+        /* ── strictly password sign-in only ── */
+        const { data, error } = await client.auth.signInWithPassword({ email, password:pw });
         if(error) throw error;
+        /* Extra guard: reject any session that is anonymous */
+        if(data?.user?.is_anonymous){
+          await client.auth.signOut();
+          throw new Error("Anonymous sessions are not permitted.");
+        }
       } else {
+        /* sign-up: create a real user account */
         const { data, error } = await client.auth.signUp({ email, password:pw });
         if(error) throw error;
+        /* Reject if Supabase somehow returned an anonymous user */
+        if(data?.user?.is_anonymous){
+          await client.auth.signOut();
+          throw new Error("Could not create a verified account. Please try again.");
+        }
         if(data?.user && !data?.session)
-          setMsg("Account created. Check your email to confirm, then sign in.");
-        else setMsg("Account created.");
+          setMsg("Account created — check your email to confirm, then sign in.");
+        else
+          setMsg("Account created.");
         setMode("signin");
       }
-    }catch(e){ setErr(e.message || "Something went wrong"); }
+    }catch(e){ setErr(e.message || "Authentication failed."); }
     finally{ setBusy(false); }
   }
 
@@ -224,39 +243,61 @@ function Auth({ client }){
           {mode==="signin" ? "Sign in" : "Create account"}
         </h2>
         <p style={{color:"var(--muted)",fontSize:14,marginTop:0}}>
-          Access to the tracker is protected — please authenticate.
+          Access is restricted to authorised accounts only.
         </p>
 
         <div style={{display:"flex",flexDirection:"column",gap:14,marginTop:20}}>
           <div className="field">
             <label>Email</label>
             <input type="email" value={email} onChange={e=>setEmail(e.target.value)}
-              onKeyDown={e=>e.key==="Enter"&&submit()} placeholder="you@business.com"/>
+              onKeyDown={e=>e.key==="Enter"&&submit()} placeholder="you@business.com"
+              autoComplete="email"/>
           </div>
           <div className="field">
             <label>Password</label>
             <input type="password" value={pw} onChange={e=>setPw(e.target.value)}
-              onKeyDown={e=>e.key==="Enter"&&submit()} placeholder="••••••••"/>
+              onKeyDown={e=>e.key==="Enter"&&submit()} placeholder="••••••••"
+              autoComplete={mode==="signin"?"current-password":"new-password"}/>
           </div>
 
           {err && <div style={{color:"var(--rose)",fontSize:13.5,fontWeight:600}}>{err}</div>}
           {msg && <div style={{color:"var(--signal)",fontSize:13.5,fontWeight:600}}>{msg}</div>}
 
           <button className="btn primary" onClick={submit} disabled={busy||!email||!pw}>
-            {busy ? <span className="spin"/> : (mode==="signin"?"Sign in":"Sign up")}
+            {busy ? <span className="spin"/> : (mode==="signin"
+              ? <><Ic.lock/> Sign in</>
+              : <><Ic.plus/> Create account</>)}
           </button>
 
           <div style={{textAlign:"center",fontSize:13.5,color:"var(--muted)"}}>
-            {mode==="signin" ? "No account yet? " : "Already have an account? "}
+            {mode==="signin" ? "Need an account? " : "Already registered? "}
             <span style={{color:"var(--signal)",fontWeight:700,cursor:"pointer"}}
               onClick={()=>{setMode(mode==="signin"?"signup":"signin");setErr(null);setMsg(null);}}>
               {mode==="signin" ? "Create one" : "Sign in"}
             </span>
           </div>
         </div>
+
+        <div className="auth-footer">
+          <Ic.lock style={{display:"inline",verticalAlign:"middle",marginRight:5}}/>
+          Secured · email &amp; password authentication only
+        </div>
       </div>
     </Centered>
   );
+}
+
+/* ============================================================
+   SESSION GUARD — called once after getSession().
+   Rejects any live session that belongs to an anonymous user.
+   ============================================================ */
+async function validateSession(client, session){
+  if(!session) return null;
+  if(session.user?.is_anonymous === true){
+    await client.auth.signOut();
+    return null;
+  }
+  return session;
 }
 
 /* ============================================================
@@ -265,7 +306,7 @@ function Auth({ client }){
 function Shell({ client, session }){
   const [view,setView]   = useState("dashboard");
   const [year,setYear]   = useState(2026);
-  const [daily,setDaily] = useState([]);     // raw rows for the year
+  const [daily,setDaily] = useState([]);
   const [loading,setLoading] = useState(true);
   const [toast,setToast] = useState(null);
   const uid = session.user.id;
@@ -283,7 +324,6 @@ function Shell({ client, session }){
 
   useEffect(()=>{ load(); },[load]);
 
-  /* derived rollups (computed live from the same numbers the DB computes) */
   const byMonth = useMemo(()=>{
     const m = Array.from({length:12},(_,i)=>({mo:i+1,income:0,total_expenses:0,net_profit:0,days:0}));
     daily.forEach(r=>{
@@ -319,7 +359,6 @@ function Shell({ client, session }){
 
   return (
     <div style={{minHeight:"100vh",display:"flex",flexDirection:"column"}}>
-      {/* top bar */}
       <header style={{
         display:"flex",alignItems:"center",justifyContent:"space-between",
         padding:"16px 26px",borderBottom:"1px solid var(--line)",
@@ -347,7 +386,6 @@ function Shell({ client, session }){
       </header>
 
       <div style={{display:"flex",flex:1,minHeight:0}}>
-        {/* sidebar */}
         <nav style={{width:216,borderRight:"1px solid var(--line)",padding:"22px 14px",
           display:"flex",flexDirection:"column",gap:6}}>
           {nav.map(([k,label,Icon])=>(
@@ -363,7 +401,6 @@ function Shell({ client, session }){
             onClick={importSeed}>Import 2026 workbook data</button>
         </nav>
 
-        {/* content */}
         <main style={{flex:1,minWidth:0,padding:"26px 30px",overflow:"auto"}}>
           {loading
             ? <div style={{display:"grid",placeItems:"center",height:"60vh",color:"var(--muted)"}}>
@@ -398,7 +435,6 @@ function Dashboard({ year, annual, byMonth, daily }){
         <Kpi label="Net Profit" value={annual.net_profit} accent="var(--gold)" big/>
         <Kpi label="Profit Margin" value={margin} suffix="%" accent="var(--signal)" raw/>
       </div>
-
       <div style={{display:"grid",gridTemplateColumns:"1.6fr 1fr",gap:18,marginTop:20}}>
         <div className="card" style={{padding:"22px 24px"}}>
           <SectionTitle>Monthly net profit</SectionTitle>
@@ -430,7 +466,7 @@ function Dashboard({ year, annual, byMonth, daily }){
 }
 
 /* ============================================================
-   DAILY ENTRY — inputs; DB auto-computes totals; edit + delete
+   DAILY ENTRY
    ============================================================ */
 function DailyEntry({ client, uid, daily, year, onSaved }){
   const today = new Date().toISOString().slice(0,10);
@@ -438,13 +474,12 @@ function DailyEntry({ client, uid, daily, year, onSaved }){
   const [date,setDate] = useState(init);
   const [f,setF] = useState({income:"",internet_exp:"",power_fuel:"",feeding:"",daily_wages:""});
   const [busy,setBusy] = useState(false);
-  const [confirmDel,setConfirmDel] = useState(false);  // delete on the open form
-  const [rowDel,setRowDel] = useState(null);           // delete from the list (entry id)
+  const [confirmDel,setConfirmDel] = useState(false);
+  const [rowDel,setRowDel] = useState(null);
   const formRef = useRef(null);
 
   const blank = {income:"",internet_exp:"",power_fuel:"",feeding:"",daily_wages:""};
 
-  // preload existing record whenever the chosen date / data changes
   useEffect(()=>{
     const ex = daily.find(r=>r.entry_date===date);
     setF(ex
@@ -498,8 +533,6 @@ function DailyEntry({ client, uid, daily, year, onSaved }){
   return (
     <div style={{maxWidth:820}}>
       <PageHead title="Daily entry" sub="Add, edit or delete a day — totals are calculated automatically"/>
-
-      {/* ---------- the form ---------- */}
       <div className="card" style={{padding:"26px 28px"}} ref={formRef}>
         <div style={{display:"flex",alignItems:"flex-end",justifyContent:"space-between",
           gap:16,flexWrap:"wrap",marginBottom:22}}>
@@ -513,7 +546,6 @@ function DailyEntry({ client, uid, daily, year, onSaved }){
             {exists ? "Editing existing day" : "New day"}
           </span>
         </div>
-
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:16}}>
           {inputs.map(([k,label,c])=>(
             <div className="field" key={k}>
@@ -524,22 +556,18 @@ function DailyEntry({ client, uid, daily, year, onSaved }){
             </div>
           ))}
         </div>
-
         <div style={{display:"flex",gap:16,marginTop:24,flexWrap:"wrap"}}>
           <Computed label="Total Expenses" value={totalExp} color="var(--rose)"/>
           <Computed label="Net Profit" value={net} color={net>=0?"var(--gold)":"var(--rose)"}/>
         </div>
-
         <div style={{display:"flex",alignItems:"center",gap:12,marginTop:24,flexWrap:"wrap"}}>
           <button className="btn primary" onClick={save} disabled={busy}>
             {busy ? <span className="spin"/> : (exists?<><Ic.edit/> Update day</>:<><Ic.plus/> Save day</>)}
           </button>
-
           {exists && !confirmDel &&
             <button className="btn" style={{borderColor:"var(--rose)",color:"var(--rose)"}}
               onClick={()=>setConfirmDel(true)} disabled={busy}>
               <Ic.trash/> Delete</button>}
-
           {exists && confirmDel &&
             <div style={{display:"flex",alignItems:"center",gap:10}}>
               <span style={{fontSize:13,color:"var(--rose)",fontWeight:600}}>Delete this day?</span>
@@ -547,14 +575,11 @@ function DailyEntry({ client, uid, daily, year, onSaved }){
                 onClick={()=>remove(current.id, date)} disabled={busy}>Yes, delete</button>
               <button className="btn ghost" onClick={()=>setConfirmDel(false)} disabled={busy}>Cancel</button>
             </div>}
-
           {!confirmDel &&
             <button className="btn ghost" onClick={()=>setDate(init)} disabled={busy}
               title="Reset to today">Clear</button>}
         </div>
       </div>
-
-      {/* ---------- saved entries with edit / delete ---------- */}
       <div style={{marginTop:24}}>
         <SectionTitle>Saved days · {year} ({list.length})</SectionTitle>
         <div className="card" style={{padding:"6px 6px 8px",overflowX:"auto"}}>
@@ -562,7 +587,8 @@ function DailyEntry({ client, uid, daily, year, onSaved }){
             ? <Empty/>
             : <table>
                 <thead><tr>
-                  <th>Date</th><th>Income</th><th>Total Exp.</th><th>Net Profit</th><th style={{textAlign:"right"}}>Actions</th>
+                  <th>Date</th><th>Income</th><th>Total Exp.</th><th>Net Profit</th>
+                  <th style={{textAlign:"right"}}>Actions</th>
                 </tr></thead>
                 <tbody>
                   {list.map(r=>(
@@ -598,14 +624,12 @@ function DailyEntry({ client, uid, daily, year, onSaved }){
 }
 
 /* ============================================================
-   MONTHLY — day-by-day grid with weekly + monthly totals
+   MONTHLY
    ============================================================ */
 function Monthly({ daily, year }){
   const [mo,setMo] = useState(()=>{ const m=new Date().getMonth()+1; return m; });
   const rows = daily.filter(r=>r.mo===mo).sort((a,b)=>a.dy-b.dy);
   const daysInMonth = new Date(year,mo,0).getDate();
-
-  // build week buckets matching the workbook (1-7, 8-14, ...)
   const weeks = [];
   for(let d=1; d<=daysInMonth; d++){
     const wk = Math.floor((d-1)/7);
@@ -614,10 +638,8 @@ function Monthly({ daily, year }){
   const rec = (d)=> rows.find(r=>r.dy===d);
   const sum = (arr,key)=>arr.reduce((a,d)=>a+Number(rec(d)?.[key]||0),0);
   const monthTotal = (key)=>rows.reduce((a,r)=>a+Number(r[key]),0);
-
   const cols = ["income","internet_exp","power_fuel","feeding","daily_wages","total_expenses","net_profit"];
   const head = ["Date","Income","Internet","Power/Fuel","Feeding","Wages","Total Exp.","Net Profit"];
-
   return (
     <div>
       <PageHead title="Monthly tracking" sub={MONTHS[mo-1]+" "+year}/>
@@ -631,7 +653,6 @@ function Monthly({ daily, year }){
             {m.slice(0,3)}</button>
         ))}
       </div>
-
       <div className="card" style={{padding:"6px 6px 10px",overflowX:"auto"}}>
         <table>
           <thead><tr>{head.map(h=><th key={h}>{h}</th>)}</tr></thead>
@@ -713,7 +734,7 @@ function Annual({ byMonth, annual, year }){
 }
 
 /* ============================================================
-   Reusable presentational pieces
+   Presentational pieces
    ============================================================ */
 function Centered({children}){
   return <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",
@@ -772,8 +793,6 @@ function Empty(){
   return <div style={{color:"var(--muted-2)",fontSize:14,padding:"30px 0",textAlign:"center"}}>
     No data yet. Add days in <b style={{color:"var(--muted)"}}>Daily Entry</b>.</div>;
 }
-
-/* lightweight custom SVG bar chart */
 function BarChart({data,dual}){
   const W=560,H=220,pad=30,bw=W/12;
   const max = Math.max(1,...data.map(d=>Math.max(d.net_profit,dual?d.income:0,0)));
@@ -801,20 +820,15 @@ function BarChart({data,dual}){
   );
 }
 
-/* ============================================================
-   Small notice shown only if the config block is still empty
-   (you, the developer — never your users)
-   ============================================================ */
+/* ── shown if credentials haven't been filled in ── */
 function NeedsConfig(){
   return (
     <Centered>
-      <div className="card" style={{maxWidth:480,padding:"34px 32px"}}>
+      <div className="card" style={{maxWidth:420,padding:"34px 32px",textAlign:"center"}}>
         <Brand/>
-        <h2 className="display" style={{margin:"20px 0 6px",fontSize:20}}>One quick step</h2>
+        <h2 className="display" style={{margin:"20px 0 6px",fontSize:20}}>Not configured</h2>
         <p style={{color:"var(--muted)",fontSize:14,lineHeight:1.6,margin:0}}>
-          Open <span className="mono">index.html</span> and paste your Supabase
-          project URL and anon key into the <span className="mono">window.HZX_CONFIG</span>
-          block near the top of the file, then refresh this page.
+          This application has not been configured yet. Please contact the administrator.
         </p>
       </div>
     </Centered>
@@ -822,23 +836,35 @@ function NeedsConfig(){
 }
 
 /* ============================================================
-   ROOT — config (from top of file) -> login -> app
+   ROOT
    ============================================================ */
 function Root(){
   const cfg = getConfig();
   const [client] = useState(()=> cfg ? makeClient(cfg) : null);
   const [session,setSession] = useState(null);
-  const [ready,setReady] = useState(false);
+  const [ready,setReady]     = useState(false);
 
   useEffect(()=>{
     if(!client){ setReady(true); return; }
-    client.auth.getSession().then(({data})=>{ setSession(data.session); setReady(true); });
-    const { data:sub } = client.auth.onAuthStateChange((_e,s)=>setSession(s));
+
+    /* Load + validate session on mount — reject any anonymous session */
+    client.auth.getSession().then(async ({data})=>{
+      const safe = await validateSession(client, data.session);
+      setSession(safe);
+      setReady(true);
+    });
+
+    /* Listen for future auth changes — reject anonymous sessions here too */
+    const { data:sub } = client.auth.onAuthStateChange(async (_e, s)=>{
+      const safe = await validateSession(client, s);
+      setSession(safe);
+    });
+
     return ()=>sub.subscription.unsubscribe();
   },[client]);
 
-  if(!client) return <NeedsConfig/>;
-  if(!ready) return <Centered><span className="spin" style={{borderTopColor:"var(--signal)"}}/></Centered>;
+  if(!client)  return <NeedsConfig/>;
+  if(!ready)   return <Centered><span className="spin" style={{borderTopColor:"var(--signal)"}}/></Centered>;
   if(!session) return <Auth client={client}/>;
   return <Shell client={client} session={session}/>;
 }
