@@ -1,0 +1,30 @@
+{
+  "name": "Hotzonex WiFi",
+  "currency": "SSP",
+  "location": "EDIT ME: e.g. Juba, near Konyo Konyo market",
+  "hours": "EDIT ME: e.g. 7:00 AM – 11:00 PM every day",
+  "network_name": "EDIT ME: e.g. Hotzonex",
+  "packages": [
+    { "name": "EDIT ME: 1 Hour", "price": 0, "validity": "1 hour", "notes": "" },
+    { "name": "EDIT ME: 1 Day", "price": 0, "validity": "24 hours", "notes": "" },
+    { "name": "EDIT ME: 1 Week", "price": 0, "validity": "7 days", "notes": "" },
+    { "name": "EDIT ME: 1 Month", "price": 0, "validity": "30 days", "notes": "" }
+  ],
+  "payment_methods": ["EDIT ME: e.g. Cash at the counter", "EDIT ME: e.g. m-Gurush"],
+  "how_to_connect": [
+    "Turn on WiFi on your phone and pick the Hotzonex network.",
+    "A login page opens automatically (if not, open any website in your browser).",
+    "Enter the voucher code you bought and tap Connect."
+  ],
+  "troubleshooting": [
+    "Login page does not open: open http://neverssl.com in the browser to trigger it.",
+    "Voucher says 'already used': each code works on one device at a time; log out on the other device or ask staff.",
+    "Connected but no internet: turn WiFi off and on, forget the network and reconnect, and make sure mobile data saver/VPN is off.",
+    "Very slow: move closer to the access point; speeds drop at peak hours in the evening."
+  ],
+  "policies": [
+    "Vouchers are not refundable once used.",
+    "Lost vouchers cannot be replaced unless the receipt is shown."
+  ],
+  "languages": ["English", "Juba Arabic"]
+}
