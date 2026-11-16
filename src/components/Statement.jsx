@@ -7,15 +7,15 @@ export default function Statement({ s }) {
   return (
     <table className="ledger">
       <tbody>
-        <tr><td>Taken in</td><td className="in">{fmt(s.income)}</td></tr>
-        <tr className={costLines.length ? "after" : ""}><td>Running costs</td><td className="out">{s.running ? fmt(-s.running) : "0"}</td></tr>
+        <tr><td>Taken in</td><td className="teal">{fmt(s.income)}</td></tr>
+        <tr className={costLines.length ? "after" : ""}><td>Running costs</td><td className="orange">{s.running ? fmt(-s.running) : "0"}</td></tr>
         {costLines.map((k) => (
           <tr key={k} className="sub"><td>{COST_LABELS[k]}</td><td>{fmt(s.costs[k])}</td></tr>
         ))}
-        <tr><td>Purchases</td><td className="out">{s.purchases ? fmt(-s.purchases) : "0"}</td></tr>
+        <tr><td>Purchases</td><td className="red">{s.purchases ? fmt(-s.purchases) : "0"}</td></tr>
         <tr className="total"><td>Profit</td><td className={s.profit < 0 ? "out" : "in"}>{fmt(s.profit)} SSP</td></tr>
         <tr><td>Moved to USD savings {s.usdUSD > 0 && <span className="soft">({fmtUSD(s.usdUSD)})</span>}</td>
-          <td>{s.usdSSP ? fmt(-s.usdSSP) : "0"}</td></tr>
+          <td className="yellow">{s.usdSSP ? fmt(-s.usdSSP) : "0"}</td></tr>
         <tr className="after"><td><strong>Cash left</strong></td><td><strong>{fmt(s.cashLeft)} SSP</strong></td></tr>
       </tbody>
     </table>

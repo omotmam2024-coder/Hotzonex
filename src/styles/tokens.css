@@ -1,63 +1,52 @@
+/* Dark navy is the default look; light is available from the theme switch.
+   Keep in sync with src/lib/palette.js (used by the charts). */
 :root {
-  color-scheme: light;
-  --paper: #F4F6F5;
-  --sheet: #FFFFFF;
-  --ink: #12233F;
-  --ink-soft: #50607A;
-  --ink-faint: #8794A6;
-  --rule: #D6DDD9;
-  --rule-strong: #B9C3BD;
-  --in: #0B7A5C;
-  --out: #B4471C;
-  --marker: #FFE14D;
-  --marker-from: 52%;          /* where the highlighter band starts under text */
-  --on-ink: #FFFFFF;
-  --focus: #2F5BEA;
-  --danger-bg: #FBEDE6;
-  --ok-bg: #E4F3EC;
+  color-scheme: dark;
+  --page: #0B1120;
+  --chrome: #0D1526;      /* sidebar and top bar */
+  --card: #111D33;
+  --line: #1A2D4A;
+  --line-soft: #162035;
+  --input: #090F1C;
+  --text: #E2E8F0;
+  --muted: #7D8FB0;
+  --faint: #4B6080;
+  --teal: #00E5C3;        /* income, highlights, primary buttons */
+  --teal-tint: rgba(0, 229, 195, 0.10);
+  --orange: #F97316;      /* running costs */
+  --red: #F05252;         /* purchases, losses */
+  --green: #10B981;       /* profit */
+  --yellow: #FBBF24;      /* USD savings */
+  --blue: #3B82F6;
+  --on-accent: #09111E;
+  --focus: #7FB4FF;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
 
-  --font: "Schibsted Grotesk", "Segoe UI", system-ui, sans-serif;
-  --t-xs: 13px; --t-s: 15px; --t-m: 18px; --t-l: 24px; --t-xl: 36px; --t-xxl: 56px;
-  --r-panel: 10px; --r-ctl: 6px;
+  --font: "Inter", "Segoe UI", system-ui, sans-serif;
+  --t-xs: 12px; --t-s: 14px; --t-m: 17px; --t-l: 24px; --t-xl: 32px;
+  --r-card: 14px; --r-ctl: 8px;
   --gutter: 16px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --paper: #0F1A2C;
-    --sheet: #16243A;
-    --ink: #E8EEF2;
-    --ink-soft: #9AAABD;
-    --ink-faint: #6B7C92;
-    --rule: #26364F;
-    --rule-strong: #3A4D6B;
-    --in: #4FD1A5;
-    --out: #F08A5D;
-    --marker: #E8C547;
-    --marker-from: 86%;
-    --on-ink: #0F1A2C;
-    --focus: #8FB0FF;
-    --danger-bg: #3A2320;
-    --ok-bg: #173A31;
-  }
-}
-
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --paper: #0F1A2C;
-  --sheet: #16243A;
-  --ink: #E8EEF2;
-  --ink-soft: #9AAABD;
-  --ink-faint: #6B7C92;
-  --rule: #26364F;
-  --rule-strong: #3A4D6B;
-  --in: #4FD1A5;
-  --out: #F08A5D;
-  --marker: #E8C547;
-  --marker-from: 86%;
-  --on-ink: #0F1A2C;
-  --focus: #8FB0FF;
-  --danger-bg: #3A2320;
-  --ok-bg: #173A31;
+:root[data-theme="light"] {
+  color-scheme: light;
+  --page: #F0F4F8;
+  --chrome: #FFFFFF;
+  --card: #FFFFFF;
+  --line: #D1DCE8;
+  --line-soft: #E2EAF3;
+  --input: #F8FAFC;
+  --text: #0F172A;
+  --muted: #55667F;
+  --faint: #94A3B8;
+  --teal: #008A76;
+  --teal-tint: rgba(0, 138, 118, 0.10);
+  --orange: #EA580C;
+  --red: #DC2626;
+  --green: #15803D;
+  --yellow: #B45309;
+  --blue: #1D4ED8;
+  --on-accent: #FFFFFF;
+  --focus: #1D4ED8;
+  --shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
 }

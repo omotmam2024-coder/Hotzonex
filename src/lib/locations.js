@@ -1,9 +1,9 @@
 // Sites and the running costs each one records.
 export const LOCATIONS = [
-  { id: "HQ",    label: "Jebel Iraq HQ",         short: "HQ",         hue: "#0B7A5C", expKeys: ["internet", "power", "feeding", "wages"] },
-  { id: "SUB",   label: "Jebel Iraq Sub-Office", short: "Sub-Office", hue: "#2F5BEA", expKeys: ["power", "wages"] },
-  { id: "GOROM", label: "Hotzonex Gorom",        short: "Gorom",      hue: "#B4471C", expKeys: ["power", "wages"] },
-  { id: "HOME",  label: "Hotzonex Home",         short: "Home",       hue: "#7A4FD1", expKeys: ["internet"] },
+  { id: "HQ",    label: "Jebel Iraq HQ",         short: "HQ",         hue: "#00E5C3", expKeys: ["internet", "power", "feeding", "wages"] },
+  { id: "SUB",   label: "Jebel Iraq Sub-Office", short: "Sub-Office", hue: "#3B82F6", expKeys: ["power", "wages"] },
+  { id: "GOROM", label: "Hotzonex Gorom",        short: "Gorom",      hue: "#F97316", expKeys: ["power", "wages"] },
+  { id: "HOME",  label: "Hotzonex Home",         short: "Home",       hue: "#A78BFA", expKeys: ["internet"] },
 ];
 export const LOC = Object.fromEntries(LOCATIONS.map((l) => [l.id, l]));
 export const ALL_SITES = "ALL";

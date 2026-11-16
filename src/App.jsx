@@ -2,27 +2,34 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "./lib/supabase";
 import { fetchMyProfile } from "./lib/api";
 import { ALL_SITES, ROLES, can } from "./lib/locations";
-import { Icon, Logo, Toast } from "./components/ui";
-import LocationPicker from "./components/LocationPicker";
+import { PALETTES, ThemeContext } from "./lib/palette";
+import { Brand, Icon, Toast } from "./components/ui";
+import SiteTabs from "./components/SiteTabs";
 import SignIn from "./screens/SignIn";
 import Today from "./screens/Today";
 import Record from "./screens/Record";
 import Reports from "./screens/Reports";
 import Team from "./screens/Team";
 
-/* ── Theme: system by default, or the choice saved on this device ─────── */
+/* ── Theme: dark navy unless this device chose light ──────────────────── */
 const THEME_KEY = "hotzonex-theme";
-function readTheme() { try { return localStorage.getItem(THEME_KEY) || "system"; } catch { return "system"; } }
-function applyTheme(t) {
-  const root = document.documentElement;
-  if (t === "system") root.removeAttribute("data-theme"); else root.setAttribute("data-theme", t);
-  try { localStorage.setItem(THEME_KEY, t); } catch { /* private mode */ }
+function readTheme() { try { return localStorage.getItem(THEME_KEY) === "light" ? "light" : "dark"; } catch { return "dark"; } }
+function useTheme() {
+  const [theme, setTheme] = useState(readTheme);
+  useEffect(() => {
+    if (theme === "light") document.documentElement.setAttribute("data-theme", "light");
+    else document.documentElement.removeAttribute("data-theme");
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "light" ? "#F0F4F8" : "#0B1120");
+    try { localStorage.setItem(THEME_KEY, theme); } catch { /* private mode */ }
+  }, [theme]);
+  return [theme, () => setTheme((t) => (t === "dark" ? "light" : "dark"))];
 }
 
 export default function App() {
   const [session, setSession] = useState(undefined); // undefined = still checking
   const [profile, setProfile] = useState(null);
   const [notice, setNotice] = useState("");
+  const [theme, toggleTheme] = useTheme();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
@@ -48,23 +55,24 @@ export default function App() {
 
   // A profile only counts if it belongs to the person signed in right now.
   const current = session && profile?.id === session.user.id ? profile : null;
+  let page;
   if (session === undefined || (session && !current && !notice)) {
-    return <main className="signin"><p className="soft" role="status">Opening Hotzonex…</p></main>;
+    page = <main className="signin"><p className="soft" role="status">Opening Hotzonex…</p></main>;
+  } else if (!session || !current) {
+    page = <SignIn notice={notice} theme={theme} onToggleTheme={toggleTheme} />;
+  } else {
+    page = <Shell key={current.id} profile={current} theme={theme} onToggleTheme={toggleTheme} />;
   }
-  if (!session || !current) return <SignIn notice={notice} />;
-  return <Shell key={current.id} profile={current} />;
+  return <ThemeContext.Provider value={PALETTES[theme]}>{page}</ThemeContext.Provider>;
 }
 
-function Shell({ profile }) {
+function Shell({ profile, theme, onToggleTheme }) {
   const [view, setView] = useState("today");
   const [loc, setLoc] = useState(can(profile, "canViewAll") ? ALL_SITES : profile.location);
   const [recordDate, setRecordDate] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [toast, setToast] = useState("");
-  const [theme, setTheme] = useState(readTheme);
   const lastFocus = useRef(0);
-
-  useEffect(() => { applyTheme(theme); }, [theme]);
 
   // Fresh figures when someone comes back to the app, at most once a minute.
   useEffect(() => {
@@ -79,15 +87,15 @@ function Shell({ profile }) {
   const clearToast = useCallback(() => setToast(""), []);
   const go = (v) => { setView(v); window.scrollTo(0, 0); };
   const record = (date) => { setRecordDate(date); go("record"); };
+  const openView = (id) => (id === "record" ? record(null) : go(id));
 
   const nav = [
-    ["today", "Today", "today"],
+    ["today", "Dashboard", "today"],
     can(profile, "canEdit") && ["record", "Record", "record"],
     ["reports", "Reports", "reports"],
   ].filter(Boolean);
-  const cycleTheme = () => setTheme((t) => (t === "light" ? "dark" : t === "dark" ? "system" : "light"));
-  const themeLabel = theme === "light" ? "Light" : theme === "dark" ? "Dark" : "Match device";
   const signOut = () => supabase.auth.signOut();
+  const showSites = view !== "team" && view !== "more";
 
   const extras = (
     <>
@@ -96,7 +104,9 @@ function Shell({ profile }) {
           <Icon name="team" />Team
         </button>
       )}
-      <button type="button" className="rail-link" onClick={cycleTheme}><Icon name={theme === "dark" ? "moon" : "sun"} />Theme: {themeLabel}</button>
+      <button type="button" className="rail-link" onClick={onToggleTheme}>
+        <Icon name={theme === "dark" ? "sun" : "moon"} />{theme === "dark" ? "Light mode" : "Dark mode"}
+      </button>
       <button type="button" className="rail-link" onClick={() => { setReloadKey((k) => k + 1); notify("Figures refreshed"); }}><Icon name="refresh" />Refresh figures</button>
       <button type="button" className="rail-link" onClick={signOut}><Icon name="out" />Sign out</button>
     </>
@@ -104,28 +114,26 @@ function Shell({ profile }) {
 
   return (
     <div className="shell">
-      <nav className="rail" aria-label="Main">
-        <div className="brand"><Logo /> Hotzonex</div>
-        {nav.map(([id, label, icon]) => (
-          <button key={id} type="button" className="rail-link" aria-current={view === id ? "page" : undefined}
-            onClick={() => (id === "record" ? record(null) : go(id))}>
-            <Icon name={icon} />{label}
-          </button>
-        ))}
-        <div className="rail-foot">
-          <div className="who"><strong>{profile.name}</strong>{ROLES[profile.role]?.label}</div>
-          {extras}
-        </div>
-      </nav>
+      <aside className="rail" aria-label="Main">
+        <Brand />
+        <div className="who"><strong>{profile.name}</strong><span className="badge">{ROLES[profile.role]?.label}</span></div>
+        <nav>
+          {nav.map(([id, label, icon]) => (
+            <button key={id} type="button" className="rail-link" aria-current={view === id ? "page" : undefined} onClick={() => openView(id)}>
+              <Icon name={icon} />{label}
+            </button>
+          ))}
+        </nav>
+        <div className="rail-foot">{extras}</div>
+      </aside>
 
       <div className="main">
         <header className="topbar no-print">
-          <div className="brand"><Logo /> <span className="only-wide">Hotzonex</span></div>
+          <Brand sub={null} />
+          {showSites ? <SiteTabs profile={profile} value={loc} onChange={setLoc} /> : <span />}
           <span className="spacer" />
-          {view !== "team" && view !== "more" && (
-            <LocationPicker profile={profile} value={loc} onChange={(v) => { setLoc(v); }} />
-          )}
         </header>
+        {showSites && <div className="subbar no-print"><SiteTabs profile={profile} value={loc} onChange={setLoc} /></div>}
 
         <main className="content">
           {view === "today" && <Today profile={profile} loc={loc} reloadKey={reloadKey} onRecord={record} />}
@@ -137,7 +145,7 @@ function Shell({ profile }) {
           {view === "more" && (
             <div>
               <div className="page-head"><div><h1>More</h1><p>Signed in as {profile.name}, {ROLES[profile.role]?.label.toLowerCase()}.</p></div></div>
-              <div className="panel" style={{ display: "grid", gap: 4 }}>{extras}</div>
+              <div className="panel" style={{ display: "grid", gap: 2, padding: "8px 0" }}>{extras}</div>
             </div>
           )}
         </main>
@@ -147,7 +155,7 @@ function Shell({ profile }) {
         {[...nav, ["more", "More", "more"]].map(([id, label, icon]) => (
           <button key={id} type="button" className="tab"
             aria-current={view === id || (id === "more" && view === "team") ? "page" : undefined}
-            onClick={() => (id === "record" ? record(null) : go(id))}>
+            onClick={() => openView(id)}>
             <Icon name={icon} size={22} />{label}
           </button>
         ))}

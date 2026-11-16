@@ -115,7 +115,7 @@ function MonthStrip({ month, date, setDate, recorded }) {
           );
         })}
       </div>
-      <div className="legend"><span className="l-done">Recorded</span><span className="l-missing">Not recorded</span></div>
+      <div className="cal-legend"><span className="l-done">Recorded</span><span className="l-missing">Not recorded</span></div>
     </div>
   );
 }

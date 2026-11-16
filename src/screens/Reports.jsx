@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchLedger } from "../lib/api";
 import { FIRST_YEAR, MONTHS, dateKey, eachDay, periodRange, periodTitle, rowDate, rowKey, shiftPeriod, shortDay, today as getToday } from "../lib/dates";
-import { ALL_SITES, LOCATIONS, siteName } from "../lib/locations";
+import { ALL_SITES, LOC, LOCATIONS, siteName } from "../lib/locations";
 import { change, fmt, fmtPct, statement } from "../lib/ledger";
-import SignalBars from "../components/SignalBars";
+import { BarsChart } from "../components/Charts";
+import Kpis from "../components/Kpis";
 import Statement from "../components/Statement";
 import { Banner, Icon, Loading, Segmented, Stepper } from "../components/ui";
 
 const KINDS = [["week", "Week"], ["month", "Month"], ["year", "Year"], ["all", "All years"]];
 const PREV_LABEL = { week: "last week", month: "last month", year: "last year" };
+const TWO = [{ key: "income", name: "Taken in", color: "teal" }, { key: "profit", name: "Profit", color: "green" }];
+const BARS = [{ key: "income", name: "Taken in", color: "teal" }, { key: "costs", name: "Costs and purchases", color: "orange" }, { key: "profit", name: "Profit", color: "green" }];
 
 export default function Reports({ loc, reloadKey }) {
   const [kind, setKind] = useState("month");
@@ -52,7 +55,7 @@ export default function Reports({ loc, reloadKey }) {
         <p>{siteName(loc)}, {periodTitle(kind, anchor)}. Printed {shortDay(t)} {t.getFullYear()}.</p>
       </div>
       <div className="page-head no-print">
-        <div><h1>Reports</h1><p>{siteName(loc)}</p></div>
+        <div><h1>Reports</h1><p className="site-name" style={{ "--site": LOC[loc]?.hue }}>{siteName(loc)}</p></div>
         <Segmented label="Period" value={kind} options={KINDS} onChange={(k) => { setKind(k); setAnchor(getToday()); }} />
       </div>
       <Banner>{error}</Banner>
@@ -72,33 +75,33 @@ export default function Reports({ loc, reloadKey }) {
       </div>
 
       {!report ? (!error && <Loading />) : (
-        <>
+        <div className="stack">
+          <Kpis s={report.s} />
           <div className="grid-2">
             <section className="panel" aria-labelledby="st-h">
               <div className="panel-head">
                 <h2 id="st-h">Money in and out</h2>
                 {report.vs != null && (
-                  <span className="soft">Takings <strong className={report.vs < 0 ? "out" : "in"}>{fmtPct(report.vs)}</strong> on {report.partial ? `the same days ${PREV_LABEL[kind]}` : PREV_LABEL[kind]}</span>
+                  <span className="soft">Takings <strong className={report.vs < 0 ? "red" : "green"}>{fmtPct(report.vs)}</strong> on {report.partial ? `the same days ${PREV_LABEL[kind]}` : PREV_LABEL[kind]}</span>
                 )}
               </div>
               <Statement s={report.s} />
             </section>
-            {report.bars.length > 1 && <section className="panel" aria-labelledby="bars-h">
+            {report.chart.length > 1 && <section className="panel" aria-labelledby="ch-h">
               <div className="panel-head">
-                <h2 id="bars-h">Takings by {report.unit}</h2>
+                <h2 id="ch-h">{report.unit === "year" ? "Year by year" : `By ${report.unit}`}</h2>
                 {report.s.margin != null && <span className="soft">You keep {Math.round(report.s.margin)}% of takings</span>}
               </div>
-              <SignalBars key={kind + dateKey(range.from)} items={report.bars} height={140} axis={report.axis} />
-              {report.losses && <p className="soft" style={{ marginTop: 12 }}>Orange bars lost money once costs and purchases were paid.</p>}
+              <BarsChart key={kind + dateKey(range.from)} data={report.chart} xKey="label" series={kind === "month" ? TWO : BARS} />
               {report.missingCount > 0 && (
-                <p className="soft" style={{ marginTop: 12 }}>
-                  {report.missingCount} {report.missingCount === 1 ? "day has" : "days have"} no takings recorded in this period (dotted bars).
+                <p className="soft" style={{ marginTop: 10 }}>
+                  {report.missingCount} {report.missingCount === 1 ? "day has" : "days have"} no takings recorded in this period{kind === "month" ? " (empty spaces in the chart)" : ""}.
                 </p>
               )}
             </section>}
           </div>
 
-          <section className="panel" aria-labelledby="tb-h" style={{ marginTop: 16 }}>
+          <section className="panel" aria-labelledby="tb-h">
             <h2 id="tb-h" style={{ marginBottom: 10 }}>{report.table.title}</h2>
             {report.table.rows.length === 0 ? <div className="empty"><p>Nothing was recorded in this period.</p></div> : (
               <div className="table-wrap">
@@ -116,7 +119,7 @@ export default function Reports({ loc, reloadKey }) {
               </div>
             )}
           </section>
-        </>
+        </div>
       )}
     </div>
   );
@@ -155,14 +158,13 @@ function build(data, kind, range, prev, loc) {
     return { ...b, s: statement(part), empty: !part.daily.length && !part.purchases.length && !part.usd.length };
   });
   const dayBuckets = kind === "week" || kind === "month";
-  const bars = sliced.map((b) => ({
-    key: b.key, label: b.label, value: b.s.income, highlight: dayBuckets && b.key === dateKey(t),
-    missing: b.future || (dayBuckets ? b.s.days === 0 : b.empty), loss: b.s.profit < 0 && b.s.income > 0,
-  }));
+  // Chart points. Periods with nothing recorded (or still to come) stay empty.
+  const chart = sliced.map((b) => {
+    const none = b.future || (dayBuckets ? b.s.days === 0 : b.empty);
+    const label = kind === "week" ? b.label.split(" (")[1]?.replace(")", "") : kind === "year" ? b.key.slice(0, 3) : b.label;
+    return { label, income: none ? null : b.s.income, profit: none ? null : b.s.profit, costs: none ? null : b.s.running + b.s.purchases };
+  });
   const missingCount = dayBuckets ? sliced.filter((b) => !b.future && b.s.days === 0).length : 0;
-  const axis = kind === "week" ? sliced.map((b) => b.label.split(" (")[1]?.replace(")", ""))
-    : kind === "month" ? [shortDay(range.from), shortDay(range.to)]
-    : kind === "year" ? ["Jan", "Jun", "Dec"] : [String(FIRST_YEAR), String(t.getFullYear())];
 
   const head5 = ["Taken in", "Running costs", "Purchases", "Profit", "To USD"];
   let table;
@@ -181,5 +183,5 @@ function build(data, kind, range, prev, loc) {
     table = { title: `By ${unitName.toLowerCase()}`, head: [unitName, ...head5], rows, foot: ["Total", s.income, s.running, s.purchases, s.profit, s.usdSSP] };
   }
 
-  return { s, vs, partial, bars, axis, missingCount, losses: bars.some((b) => b.loss && !b.missing), table, unit: dayBuckets ? "day" : kind === "year" ? "month" : "year" };
+  return { s, vs, partial, chart, missingCount, table, unit: dayBuckets ? "day" : kind === "year" ? "month" : "year" };
 }

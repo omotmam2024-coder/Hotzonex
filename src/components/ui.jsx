@@ -1,7 +1,8 @@
 import { useEffect, useId, useState } from "react";
 
 const PATHS = {
-  today: "M4 20V10M10 20V6M16 20v-8M22 20V3",
+  today: "M3 3h7v7H3zm11 0h7v7h-7zM3 14h7v7H3zm11 0h7v7h-7z",
+  wifi: "M5 12.55a11 11 0 0114.08 0M1.42 9a16 16 0 0121.16 0M8.53 16.11a6 6 0 016.95 0M12 20h.01",
   record: "M12 5v14M5 12h14",
   reports: "M4 4h16v16H4zM4 9h16M9 9v11",
   more: "M5 12h.01M12 12h.01M19 12h.01",
@@ -26,16 +27,16 @@ export function Icon({ name, size = 20 }) {
   );
 }
 
-// Four rising bars: the Hotzonex mark.
-export function Logo({ size = 26 }) {
+// The Hotzonex WiFi mark and wordmark.
+export function Brand({ sub = "Automated tracker", iconSize = 18 }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 26 26" aria-hidden="true">
-      <rect width="26" height="26" rx="6" fill="var(--ink)" />
-      {[0, 1, 2, 3].map((i) => (
-        <rect key={i} x={5 + i * 4.4} y={19 - (i + 1) * 3.3} width="3" height={(i + 1) * 3.3} rx="1"
-          fill={i === 3 ? "var(--marker)" : "var(--on-ink)"} />
-      ))}
-    </svg>
+    <div className="brand">
+      <span className="brand-mark"><Icon name="wifi" size={iconSize} /></span>
+      <span>
+        <span className="brand-name">HOTZONEX <span>WiFi</span></span>
+        {sub && <span className="brand-sub" style={{ display: "block" }}>{sub}</span>}
+      </span>
+    </div>
   );
 }
 

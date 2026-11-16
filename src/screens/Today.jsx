@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchLedger } from "../lib/api";
-import { addDays, dateKey, daysInMonth, eachDay, longDay, rowDate, rowKey, shortDay, today as getToday } from "../lib/dates";
-import { ALL_SITES, LOCATIONS, can, siteName } from "../lib/locations";
+import { addDays, dateKey, daysInMonth, eachDay, longDay, monthTitle, rowDate, rowKey, shortDay, today as getToday } from "../lib/dates";
+import { ALL_SITES, LOC, LOCATIONS, can, siteName } from "../lib/locations";
 import { change, fmt, fmtPct, nv, runningCosts, statement } from "../lib/ledger";
-import SignalBars from "../components/SignalBars";
+import { TrendChart } from "../components/Charts";
+import Kpis from "../components/Kpis";
 import { Banner, Loading } from "../components/ui";
 
 const WINDOW = 30;
@@ -28,88 +29,87 @@ export default function Today({ profile, loc, reloadKey, onRecord }) {
 
   if (error && !data) return <Banner>{error}</Banner>;
   if (!view) return <Loading />;
-  const { t, todayRow, todayIncome, todayKept, bars, mtd, lastMtd, missing, sites } = view;
+  const { t, todayRow, todayIncome, todayKept, yesterday, trend, mtd, lastMtd, missing, sites } = view;
   const single = loc !== ALL_SITES;
   const vs = change(mtd.income, lastMtd.income);
 
   return (
     <div className="stack">
       <Banner>{error}</Banner>
-      <div className="page-head">
+      <div className="page-head" style={{ marginBottom: 0 }}>
         <div>
-          <h1>{longDay(t)}</h1>
-          <p>{siteName(loc)}</p>
+          <h1>Business overview</h1>
+          <p>{longDay(t)}, <span className="site-name" style={{ "--site": LOC[loc]?.hue }}>{siteName(loc)}</span></p>
         </div>
       </div>
 
-      <section className="panel" aria-labelledby="today-h">
-        <h2 id="today-h" className="visually-hidden">Today</h2>
-        {todayRow ? (
-          <>
-            <p className="soft" style={{ marginBottom: 10 }}>Taken in today</p>
-            <div className="figure"><span className="marked">{fmt(todayIncome)}</span><small>SSP</small></div>
-            <p style={{ marginTop: 12, fontSize: "var(--t-m)" }}>
-              <span className={todayKept < 0 ? "out" : "in"} style={{ fontWeight: 700 }}>{fmt(todayKept)} SSP</span>{" "}
-              kept after today's running costs
-            </p>
-          </>
-        ) : (
-          <>
-            <div className="figure" style={{ fontSize: "var(--t-xl)" }}><span className="marked">Not recorded yet</span></div>
-            <p style={{ marginTop: 12 }} className="soft">
-              {single ? "Nothing has been entered for today at this site." : "No site has entered today's takings yet."}
-            </p>
-          </>
-        )}
+      <div className="hero">
+        <section className="panel today-card" aria-labelledby="today-h">
+          <h2 id="today-h" style={{ fontSize: 14, fontWeight: 600, color: "var(--muted)" }}>Today's takings</h2>
+          {todayRow ? (
+            <>
+              <div className="today-value">{fmt(todayIncome)}<small>SSP</small></div>
+              <p style={{ marginTop: 12 }}>
+                <strong className={todayKept < 0 ? "red" : "green"}>{fmt(todayKept)} SSP</strong> kept after today's running costs
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="today-value empty-state">Not recorded yet</div>
+              <p className="soft" style={{ marginTop: 10 }}>
+                {single ? "Nothing has been entered for today at this site." : "No site has entered today's takings yet."}
+              </p>
+            </>
+          )}
+          <p className="soft" style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--line-soft)" }}>
+            Yesterday: <strong style={{ color: "var(--text)" }}>{yesterday == null ? "not recorded" : `${fmt(yesterday)} SSP`}</strong>
+          </p>
+          {can(profile, "canEdit") && single && (
+            <div className="actions">
+              <button type="button" className="btn" onClick={() => onRecord(t)}>
+                {todayRow ? "Edit today's takings" : "Record today's takings"}
+              </button>
+            </div>
+          )}
+        </section>
 
-        <div style={{ marginTop: 24 }}>
-          <SignalBars items={bars} axis={[shortDay(addDays(t, -(WINDOW - 1))), "Last 30 days", "Today"]} />
-        </div>
-
-        {can(profile, "canEdit") && single && (
-          <div className="actions">
-            <button type="button" className="btn" onClick={() => onRecord(t)}>
-              {todayRow ? "Edit today's takings" : "Record today's takings"}
-            </button>
+        <section className="panel" aria-labelledby="trend-h">
+          <div className="panel-head">
+            <h2 id="trend-h">Last 30 days</h2>
+            <span className="soft">{shortDay(addDays(t, -(WINDOW - 1)))} to today</span>
           </div>
-        )}
+          <TrendChart data={trend} xKey="label" height={210}
+            series={[{ key: "income", name: "Taken in", color: "teal" }, { key: "profit", name: "Profit after running costs", color: "green", dashed: true }]} />
+        </section>
+      </div>
+
+      <section aria-labelledby="mtd-h">
+        <div className="panel-head" style={{ marginTop: 8 }}>
+          <h2 id="mtd-h">{monthTitle(t)} so far</h2>
+          <span className="soft">
+            {vs == null ? `${mtd.days} ${mtd.days === 1 ? "day" : "days"} recorded`
+              : <>Takings <strong className={vs < 0 ? "red" : "green"}>{fmtPct(vs)}</strong> on the same days last month ({fmt(lastMtd.income)} SSP)</>}
+          </span>
+        </div>
+        <Kpis s={mtd} />
       </section>
 
       <div className="grid-2">
-        <section className="panel" aria-labelledby="mtd-h">
-          <div className="panel-head">
-            <h2 id="mtd-h">This month so far</h2>
-            <span className="soft">{mtd.days} {mtd.days === 1 ? "day" : "days"} recorded</span>
-          </div>
-          <table className="ledger">
-            <tbody>
-              <tr><td>Taken in</td><td className="in">{fmt(mtd.income)}</td></tr>
-              <tr><td>Running costs and purchases</td><td className="out">{fmt(-(mtd.running + mtd.purchases))}</td></tr>
-              <tr className="total"><td>Profit</td><td className={mtd.profit < 0 ? "out" : "in"}>{fmt(mtd.profit)} SSP</td></tr>
-            </tbody>
-          </table>
-          <p className="soft" style={{ marginTop: 12 }}>
-            {vs == null
-              ? "No figures for the same days last month to compare with."
-              : <>Takings are <strong className={vs < 0 ? "out" : "in"}>{fmtPct(vs)}</strong> on the same days last month ({fmt(lastMtd.income)} SSP).</>}
-          </p>
-        </section>
-
-        {single ? (
+        {single && (
           <section className="panel" aria-labelledby="miss-h">
             <h2 id="miss-h" style={{ marginBottom: 10 }}>Missing days</h2>
             {missing.length === 0 ? (
               <p className="soft">Every day this month has been recorded so far.</p>
             ) : (
               <>
-                <p>{missing.length === 1 ? "1 earlier day this month has" : `${missing.length} earlier days this month have`} no takings recorded: {missing.slice(0, 6).map((d) => d.getDate()).join(", ")}{missing.length > 6 ? "…" : ""}.</p>
+                <p>{missing.length === 1 ? "1 earlier day this month has" : `${missing.length} earlier days this month have`} no takings recorded: <strong className="orange">{missing.slice(0, 8).map((d) => d.getDate()).join(", ")}{missing.length > 8 ? "…" : ""}</strong></p>
                 {can(profile, "canEdit") && (
                   <div className="actions"><button type="button" className="btn quiet" onClick={() => onRecord(missing[0])}>Record {shortDay(missing[0])}</button></div>
                 )}
               </>
             )}
           </section>
-        ) : null}
+        )}
 
         {viewAll && (
           <section className="panel" aria-labelledby="sites-h">
@@ -122,7 +122,9 @@ export default function Today({ profile, loc, reloadKey, onRecord }) {
                     <span className="meta">{s.missing == null ? "Nothing recorded this month"
                       : s.missing ? `${s.missing} earlier ${s.missing === 1 ? "day" : "days"} missing this month` : "Up to date this month"}</span>
                   </span>
-                  <span className="num" style={{ fontWeight: 700 }}>{s.recorded ? `${fmt(s.income)} SSP` : <span className="soft" style={{ fontWeight: 500 }}>Not recorded</span>}</span>
+                  <span className="num" style={{ fontWeight: 700, color: s.recorded ? "var(--teal)" : "var(--muted)" }}>
+                    {s.recorded ? `${fmt(s.income)} SSP` : "Not recorded"}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -144,9 +146,10 @@ function summarise(data, loc) {
     byDay.set(k, { income: cur.income + nv(r.income), costs: cur.costs + runningCosts(r) });
   }
   const todayRow = byDay.get(dateKey(t));
-  const bars = eachDay(addDays(t, -(WINDOW - 1)), t).map((d) => {
+  // Days nobody recorded are left empty, so the lines show a gap there.
+  const trend = eachDay(addDays(t, -(WINDOW - 1)), t).map((d) => {
     const v = byDay.get(dateKey(d));
-    return { key: dateKey(d), label: shortDay(d), value: v?.income ?? 0, missing: !v, highlight: d.getTime() === t.getTime(), loss: v ? v.income < v.costs : false };
+    return { label: shortDay(d), income: v ? v.income : null, profit: v ? v.income - v.costs : null };
   });
 
   const monthStart = new Date(t.getFullYear(), t.getMonth(), 1);
@@ -172,6 +175,7 @@ function summarise(data, loc) {
 
   return {
     t, todayRow, todayIncome: todayRow?.income ?? 0, todayKept: todayRow ? todayRow.income - todayRow.costs : 0,
-    bars, mtd, lastMtd, missing, sites,
+    yesterday: byDay.get(dateKey(addDays(t, -1)))?.income ?? null,
+    trend, mtd, lastMtd, missing, sites,
   };
 }

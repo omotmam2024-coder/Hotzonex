@@ -1,9 +1,9 @@
 {
-  "name": "Hotzonex Tracker",
+  "name": "Hotzonex WiFi Tracker",
   "short_name": "Hotzonex",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#F4F6F5",
-  "theme_color": "#12233F",
+  "background_color": "#0B1120",
+  "theme_color": "#0B1120",
   "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
 }
