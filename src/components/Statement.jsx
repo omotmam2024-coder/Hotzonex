@@ -14,9 +14,9 @@ export default function Statement({ s }) {
         ))}
         <tr><td>Purchases</td><td className="red">{s.purchases ? fmt(-s.purchases) : "0"}</td></tr>
         <tr className="total"><td>Profit</td><td className={s.profit < 0 ? "out" : "in"}>{fmt(s.profit)} SSP</td></tr>
-        <tr><td>Moved to USD savings {s.usdUSD > 0 && <span className="soft">({fmtUSD(s.usdUSD)})</span>}</td>
+        <tr><td>Exchanged to dollars {s.usdUSD > 0 && <span className="soft">({fmtUSD(s.usdUSD)})</span>}</td>
           <td className="yellow">{s.usdSSP ? fmt(-s.usdSSP) : "0"}</td></tr>
-        <tr className="after"><td><strong>Cash left</strong></td><td><strong>{fmt(s.cashLeft)} SSP</strong></td></tr>
+        <tr className="after"><td><strong>Balance in SSP</strong></td><td><strong className={s.cashLeft < 0 ? "red" : ""}>{fmt(s.cashLeft)} SSP</strong></td></tr>
       </tbody>
     </table>
   );

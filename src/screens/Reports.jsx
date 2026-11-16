@@ -174,21 +174,21 @@ function build(data, kind, range, prev, loc) {
   });
   const missingCount = dayBuckets ? sliced.filter((b) => !b.future && b.s.days === 0).length : 0;
 
-  const head5 = ["Taken in", "Running costs", "Purchases", "Profit", "To USD"];
+  const head5 = ["Taken in", "Running costs", "Purchases", "Profit", "Exchanged to $", "Balance (SSP)"];
   let table;
   if (loc === ALL_SITES) {
     const rows = LOCATIONS.map((l) => {
       const st = statement({ daily: cur.daily.filter((r) => r.location === l.id), purchases: cur.purchases.filter((r) => r.location === l.id), usd: cur.usd.filter((r) => r.location === l.id) });
       return { key: l.id, muted: st.days === 0 && !st.purchases, cells: [l.label, st.income, st.running, st.purchases, st.profit, st.usdSSP, st.cashLeft] };
     });
-    table = { title: "By site", head: ["Site", ...head5, "Cash left"], rows, foot: ["All sites", s.income, s.running, s.purchases, s.profit, s.usdSSP, s.cashLeft] };
+    table = { title: "By site", head: ["Site", ...head5], rows, foot: ["All sites", s.income, s.running, s.purchases, s.profit, s.usdSSP, s.cashLeft] };
   } else {
     const unitName = dayBuckets ? "Day" : kind === "year" ? "Month" : "Year";
     const rows = sliced
       .filter((b) => !b.future && (dayBuckets || !b.empty))
       .map((b) => ({ key: b.key, muted: b.empty,
-        cells: b.empty ? [b.label, "Not recorded", "", "", "", ""] : [b.label, b.s.income, b.s.running, b.s.purchases, b.s.profit, b.s.usdSSP] }));
-    table = { title: `By ${unitName.toLowerCase()}`, head: [unitName, ...head5], rows, foot: ["Total", s.income, s.running, s.purchases, s.profit, s.usdSSP] };
+        cells: b.empty ? [b.label, "Not recorded", "", "", "", "", ""] : [b.label, b.s.income, b.s.running, b.s.purchases, b.s.profit, b.s.usdSSP, b.s.cashLeft] }));
+    table = { title: `By ${unitName.toLowerCase()}`, head: [unitName, ...head5], rows, foot: ["Total", s.income, s.running, s.purchases, s.profit, s.usdSSP, s.cashLeft] };
   }
 
   const nothing = cur.daily.length === 0 && cur.purchases.length === 0 && cur.usd.length === 0;

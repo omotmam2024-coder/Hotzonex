@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { deleteRow, deleteUsdSpending, fetchLedger, fetchUsdSpending, saveRow, saveUsdSpending } from "../lib/api";
-import { FIRST_YEAR, rowDate, shortDay, today as getToday, toRowFields } from "../lib/dates";
+import { FIRST_YEAR, daysInMonth, monthTitle, rowDate, shortDay, today as getToday, toRowFields } from "../lib/dates";
 import { ALL_SITES, LOC, LOCATIONS, can } from "../lib/locations";
 import { fmt, fmtUSD, nv, statement } from "../lib/ledger";
 import { DonutChart, TrendChart } from "../components/Charts";
-import { Banner, DeleteButton, Field, Icon, Loading } from "../components/ui";
+import { Banner, DeleteButton, Field, Icon, Loading, Stepper } from "../components/ui";
+import { BalanceTable } from "../components/Balance";
+import { siteBalances } from "../lib/balances";
 
 const SPEND_CATEGORIES = ["Devices / equipment", "Other business purchase", "Taken out as cash", "Other"];
 const SPEND_COLORS = { "Devices / equipment": "orange", "Other business purchase": "red", "Taken out as cash": "cyan", Other: "grey" };
@@ -17,6 +19,7 @@ export default function Dollars({ profile, reloadKey, notify }) {
   const [error, setError] = useState("");
   const [version, setVersion] = useState(0);
   const [editing, setEditing] = useState(null); // { kind: "exchange" | "spend", row }
+  const [month, setMonth] = useState(() => { const t = getToday(); return new Date(t.getFullYear(), t.getMonth(), 1); });
   const edit = can(profile, "canAdjust");
 
   useEffect(() => {
@@ -28,6 +31,13 @@ export default function Dollars({ profile, reloadKey, notify }) {
   }, [reloadKey, version]);
 
   const w = useMemo(() => (data ? wallet(data) : null), [data]);
+  const bal = useMemo(() => {
+    if (!data) return null;
+    const end = new Date(month.getFullYear(), month.getMonth(), daysInMonth(month.getMonth(), month.getFullYear()));
+    return siteBalances(data.ledger, (r) => { const d = rowDate(r); return d >= month && d <= end; });
+  }, [data, month]);
+  const t0 = getToday();
+  const isThisMonth = month.getFullYear() === t0.getFullYear() && month.getMonth() === t0.getMonth();
   const done = (msg) => { setEditing(null); notify(msg); setVersion((v) => v + 1); };
 
   if (error && !data) return <Banner>{error}</Banner>;
@@ -46,13 +56,24 @@ export default function Dollars({ profile, reloadKey, notify }) {
       <div className="kpis">
         <Card label="Dollar balance" icon="cash" color="var(--brand)" value={fmtUSD(w.held)}
           sub={w.latestRate ? `Worth about ${fmt(w.held * w.latestRate)} SSP at today's rate` : "No exchanges yet"} />
-        <Card label="SSP not yet exchanged" icon="trend" color={w.sspLeft < 0 ? "var(--red)" : "var(--green)"} value={`${fmt(w.sspLeft)}`} unit="SSP"
-          sub={`Of ${fmt(w.profit)} SSP total profit`} />
-        <Card label="Dollars bought" icon="up" color="var(--cyan)" value={fmtUSD(w.bought)}
-          sub={w.exchanges.length ? `For ${fmt(w.sspExchanged)} SSP in ${w.exchanges.length} ${w.exchanges.length === 1 ? "exchange" : "exchanges"}` : "No exchanges yet"} />
+        <Card label={`Balance in SSP, ${monthTitle(month).split(" ")[0]}`} icon="trend" color={bal.total.cashLeft < 0 ? "var(--red)" : "var(--green)"} value={fmt(bal.total.cashLeft)} unit="SSP"
+          sub={`${fmt(bal.total.profit)} profit − ${fmt(bal.total.usdSSP)} exchanged`} />
+        <Card label={`Exchanged in ${monthTitle(month).split(" ")[0]}`} icon="up" color="var(--cyan)" value={fmtUSD(bal.total.usdUSD)}
+          sub={bal.total.usdSSP ? `For ${fmt(bal.total.usdSSP)} SSP` : "No exchanges this month"} />
         <Card label="Dollars spent" icon="cart" color="var(--orange)" value={fmtUSD(w.spent)}
           sub={w.spent ? `Mostly on ${w.topSpend.toLowerCase()}` : "Nothing spent yet"} />
       </div>
+
+      <section className="panel" aria-labelledby="bybal-h">
+        <div className="panel-head">
+          <h2 id="bybal-h">Balance by site</h2>
+          <Stepper title={monthTitle(month)} onPrev={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}
+            onNext={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} nextDisabled={isThisMonth}
+            prevLabel="Previous month" nextLabel="Next month" />
+        </div>
+        <p className="soft" style={{ marginBottom: 12, fontSize: 13 }}>Each site's profit for the month, minus the SSP from that site you changed into dollars.</p>
+        <BalanceTable rows={bal.rows} total={bal.total} />
+      </section>
 
       <div className="grid-2">
         <section className="panel" aria-labelledby="rate-h">
@@ -163,7 +184,7 @@ function wallet({ ledger, spending }) {
     bought, spent, held: bought - spent, exchanges, spendSlices,
     topSpend: spendSlices[0]?.name.replace("Spent: ", "") ?? "",
     rates, latestRate: latest ?? null,
-    fall: first && latest ? (1 - first / latest) * 100 : null,
+    fall: rates.length > 1 && first && latest ? (1 - first / latest) * 100 : null,
     firstDate: rates.length ? rates[0].label : "",
     history: events.reverse(),
   };

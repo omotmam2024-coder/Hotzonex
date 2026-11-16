@@ -5,6 +5,8 @@ import { ALL_SITES, COST_KEYS, COST_LABELS, LOCATIONS, can, siteName, siteColor 
 import { fmt, nv, runningCosts, statement } from "../lib/ledger";
 import { DonutChart, TrendChart } from "../components/Charts";
 import Kpis from "../components/Kpis";
+import { BalanceEquation, BalanceTable } from "../components/Balance";
+import { siteBalances } from "../lib/balances";
 import { Banner, Loading } from "../components/ui";
 
 const COST_COLORS = { internet: "cyan", power: "orange", feeding: "grey", wages: "brand" };
@@ -30,7 +32,7 @@ export default function Today({ profile, loc, reloadKey, onRecord }) {
 
   if (error && !data) return <Banner>{error}</Banner>;
   if (!view) return <Loading />;
-  const { t, todayRow, todayIncome, todayKept, yesterday, trend, mtd, lastMtd, missing, sites, bySite } = view;
+  const { t, todayRow, todayIncome, todayKept, yesterday, trend, mtd, lastMtd, missing, sites, bySite, balances } = view;
   const single = loc !== ALL_SITES;
   const firstName = profile.name.split(" ")[0];
 
@@ -61,6 +63,14 @@ export default function Today({ profile, loc, reloadKey, onRecord }) {
       </div>
 
       <Kpis s={mtd} before={lastMtd} compareLabel="vs same days last month" />
+
+      <section className="panel" aria-labelledby="bal-h">
+        <div className="panel-head">
+          <h2 id="bal-h">Balance after exchange</h2>
+          <span className="soft">{monthTitle(t)} so far</span>
+        </div>
+        {single ? <BalanceEquation s={mtd} /> : <BalanceTable rows={balances.rows} total={balances.total} />}
+      </section>
 
       <div className="grid-2">
         <section className="panel" aria-labelledby="trend-h">
@@ -186,6 +196,7 @@ function summarise(data, loc, days) {
     t, todayRow, todayIncome: todayRow?.income ?? 0, todayKept: todayRow ? todayRow.income - todayRow.costs : 0,
     yesterday: byDay.get(dateKey(addDays(t, -1)))?.income || null,
     trend, mtd, lastMtd, missing, sites, bySite,
+    balances: siteBalances(data, (r) => { const d = rowDate(r); return d >= monthStart && d <= t; }),
   };
 }
 
