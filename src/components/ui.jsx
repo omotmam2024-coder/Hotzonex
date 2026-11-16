@@ -87,10 +87,11 @@ export function Segmented({ options, value, onChange, label }) {
   );
 }
 
-export function Stepper({ title, onPrev, onNext, nextDisabled, prevLabel = "Previous", nextLabel = "Next" }) {
+export function Stepper({ title, onPrev, onNext, nextDisabled, prevDisabled, prevLabel = "Previous", nextLabel = "Next" }) {
   return (
     <div className="stepper">
-      <button type="button" className="icon-btn" onClick={onPrev} aria-label={prevLabel}><Icon name="left" /></button>
+      <button type="button" className="icon-btn" onClick={onPrev} disabled={prevDisabled} aria-label={prevLabel}
+        style={prevDisabled ? { opacity: 0.3 } : undefined}><Icon name="left" /></button>
       <strong>{title}</strong>
       <button type="button" className="icon-btn" onClick={onNext} disabled={nextDisabled} aria-label={nextLabel}
         style={nextDisabled ? { opacity: 0.3 } : undefined}><Icon name="right" /></button>

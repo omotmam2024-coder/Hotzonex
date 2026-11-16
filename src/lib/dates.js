@@ -3,6 +3,8 @@
 export const MONTHS = ["January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"];
 export const FIRST_YEAR = 2026;
+// The tracker starts here (it matches HISTORY_FROM in api/sync.js).
+export const START_DATE = new Date(2026, 10, 1);
 
 const isLeap = (y) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
 export const daysInMonth = (monthIndex, year) =>
@@ -40,7 +42,7 @@ export function periodRange(kind, anchor) {
   }
   if (kind === "month") return { from: new Date(y, m, 1), to: new Date(y, m, daysInMonth(m, y)) };
   if (kind === "year") return { from: new Date(y, 0, 1), to: new Date(y, 11, 31) };
-  return { from: new Date(FIRST_YEAR, 0, 1), to: new Date(today().getFullYear(), 11, 31) };
+  return { from: START_DATE, to: new Date(today().getFullYear(), 11, 31) };
 }
 
 export function shiftPeriod(kind, anchor, step) {
@@ -55,5 +57,5 @@ export function periodTitle(kind, anchor) {
   if (kind === "week") return `${shortDay(from)} – ${shortDay(to)} ${to.getFullYear()}`;
   if (kind === "month") return monthTitle(anchor);
   if (kind === "year") return String(anchor.getFullYear());
-  return `Since ${FIRST_YEAR}`;
+  return `Since ${shortDay(START_DATE)} ${START_DATE.getFullYear()}`;
 }

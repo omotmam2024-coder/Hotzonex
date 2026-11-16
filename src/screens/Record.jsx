@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { deleteRow, fetchDaily, fetchPurchases, fetchUsd, resetDayCosts, saveDayCosts, saveRow, syncNow } from "../lib/api";
-import { MONTHS, dateKey, daysInMonth, longDay, monthTitle, rowKey, today as getToday, toRowFields } from "../lib/dates";
+import { MONTHS, dateKey, daysInMonth, longDay, monthTitle, rowKey, today as getToday, toRowFields, START_DATE } from "../lib/dates";
 import { ALL_SITES, COST_KEYS, COST_LABELS, LOC, LOCATIONS, PURCHASE_CATEGORIES, can, siteColor } from "../lib/locations";
 import { fmt, nv, runningCosts } from "../lib/ledger";
 import { Banner, DeleteButton, Field, Loading, Segmented, Stepper } from "../components/ui";
@@ -68,7 +68,7 @@ export default function Record({ profile, loc, onPickSite, startDate, reloadKey,
         <section className="panel narrow">
           <div className="panel-head">
             <Stepper title={monthTitle(month)} onPrev={() => shiftMonth(-1)} onNext={() => shiftMonth(1)}
-              nextDisabled={isCurrentMonth} prevLabel="Previous month" nextLabel="Next month" />
+              nextDisabled={isCurrentMonth} prevDisabled={month <= START_DATE} prevLabel="Previous month" nextLabel="Next month" />
           </div>
           {!rows ? <Loading /> : tab === "takings"
             ? <TakingsForm key={dateKey(date) + loc + (rows.daily.find((r) => rowKey(r) === dateKey(date))?.id ?? "")} profile={profile} loc={loc} date={date} setDate={setDate} month={month} rows={rows.daily} onSaved={saved} />

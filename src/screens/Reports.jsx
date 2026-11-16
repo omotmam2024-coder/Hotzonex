@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchLedger } from "../lib/api";
-import { FIRST_YEAR, MONTHS, dateKey, eachDay, periodRange, periodTitle, rowDate, rowKey, shiftPeriod, shortDay, today as getToday } from "../lib/dates";
+import { FIRST_YEAR, MONTHS, START_DATE, dateKey, eachDay, periodRange, periodTitle, rowDate, rowKey, shiftPeriod, shortDay, today as getToday } from "../lib/dates";
 import { ALL_SITES, COST_KEYS, COST_LABELS, LOCATIONS, siteName } from "../lib/locations";
 import { change, fmt, fmtPct, statement } from "../lib/ledger";
 import { BarsChart } from "../components/Charts";
@@ -67,7 +67,7 @@ export default function Reports({ loc, reloadKey }) {
         {kind === "all"
           ? <strong>{periodTitle(kind, anchor)}</strong>
           : <Stepper title={periodTitle(kind, anchor)} onPrev={() => setAnchor(shiftPeriod(kind, anchor, -1))}
-              onNext={() => setAnchor(shiftPeriod(kind, anchor, 1))} nextDisabled={atLatest}
+              onNext={() => setAnchor(shiftPeriod(kind, anchor, 1))} nextDisabled={atLatest} prevDisabled={range.from <= START_DATE}
               prevLabel={`Previous ${kind}`} nextLabel={`Next ${kind}`} />}
         {report && !report.nothing && (
           <span className="row-actions">

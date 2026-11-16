@@ -18,7 +18,8 @@ const COST_KEYS = ["internet", "power", "feeding", "wages"];
 // Cloud expense category -> tracker running-cost column. Anything else is a purchase.
 const RUNNING = { internet: "internet", power: "power", feeding: "feeding", salaries: "wages", wages: "wages" };
 const CATEGORY_LABEL = { repairs: "Maintenance", equipment: "Equipment / Hardware", other: "Other" };
-const HISTORY_FROM = "2026-01-01";
+// The tracker starts on this day; nothing earlier is brought in.
+const HISTORY_FROM = "2026-11-01";
 
 class HttpError extends Error { constructor(status, message) { super(message); this.status = status; } }
 
@@ -162,7 +163,8 @@ export default async function handler(req, res) {
     // entered late in Hotzonex Cloud for earlier days (or corrected, or
     // deleted) still come through. A nightly run, or an admin, can ask for all.
     const startOfLastMonth = (() => { const [y, m] = today.split("-").map(Number); return m === 1 ? `${y - 1}-12-01` : `${y}-${String(m - 1).padStart(2, "0")}-01`; })();
-    const from = body.all ? HISTORY_FROM : /^\d{4}-\d{2}-\d{2}$/.test(body.from ?? "") ? body.from : startOfLastMonth;
+    const asked = body.all ? HISTORY_FROM : /^\d{4}-\d{2}-\d{2}$/.test(body.from ?? "") ? body.from : startOfLastMonth;
+    const from = asked < HISTORY_FROM ? HISTORY_FROM : asked;
     window = { from, to: today };
     await setStatus({ last_run_at: new Date().toISOString(), window_from: from, window_to: today });
     const result = await runSync(window);

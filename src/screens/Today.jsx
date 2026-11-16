@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchLedger } from "../lib/api";
-import { addDays, dateKey, daysInMonth, eachDay, longDay, monthTitle, rowDate, rowKey, shortDay, today as getToday } from "../lib/dates";
+import { addDays, dateKey, daysInMonth, eachDay, longDay, monthTitle, rowDate, rowKey, shortDay, today as getToday, START_DATE } from "../lib/dates";
 import { ALL_SITES, COST_KEYS, COST_LABELS, LOCATIONS, can, siteName, siteColor } from "../lib/locations";
 import { fmt, nv, runningCosts, statement } from "../lib/ledger";
 import { DonutChart, TrendChart } from "../components/Charts";
@@ -163,7 +163,8 @@ function summarise(data, loc, days) {
   }
   const todayRow = byDay.get(dateKey(t))?.income > 0 ? byDay.get(dateKey(t)) : null;
   // Days nobody recorded are left empty, so the lines show a gap there.
-  const trend = eachDay(addDays(t, -(days - 1)), t).map((d) => {
+  const trendFrom = addDays(t, -(days - 1));
+  const trend = eachDay(trendFrom < START_DATE ? START_DATE : trendFrom, t).map((d) => {
     const v = byDay.get(dateKey(d))?.income > 0 ? byDay.get(dateKey(d)) : null;
     return { label: days <= 7 ? d.toLocaleDateString("en-GB", { weekday: "short" }) : shortDay(d), income: v ? v.income : null, profit: v ? v.income - v.costs : null };
   });

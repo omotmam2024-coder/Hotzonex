@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { deleteRow, deleteUsdSpending, fetchLedger, fetchUsdSpending, saveRow, saveUsdSpending } from "../lib/api";
-import { FIRST_YEAR, daysInMonth, monthTitle, rowDate, shortDay, today as getToday, toRowFields } from "../lib/dates";
+import { FIRST_YEAR, START_DATE, daysInMonth, monthTitle, rowDate, shortDay, today as getToday, toRowFields } from "../lib/dates";
 import { ALL_SITES, LOC, LOCATIONS, can } from "../lib/locations";
 import { fmt, fmtUSD, nv, statement } from "../lib/ledger";
 import { DonutChart, TrendChart } from "../components/Charts";
@@ -68,7 +68,7 @@ export default function Dollars({ profile, reloadKey, notify }) {
         <div className="panel-head">
           <h2 id="bybal-h">Balance by site</h2>
           <Stepper title={monthTitle(month)} onPrev={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}
-            onNext={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} nextDisabled={isThisMonth}
+            onNext={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))} nextDisabled={isThisMonth} prevDisabled={month <= START_DATE}
             prevLabel="Previous month" nextLabel="Next month" />
         </div>
         <p className="soft" style={{ marginBottom: 12, fontSize: 13 }}>Each site's profit for the month, minus the SSP from that site you changed into dollars.</p>
