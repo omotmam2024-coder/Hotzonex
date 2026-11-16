@@ -60,6 +60,42 @@ export async function deleteRow(kind, id) {
   if (!rows.length) throw new Error("Nothing was deleted. Only an admin can delete records.");
 }
 
+// Sites, fixed costs and the Hotzonex Cloud sync
+export async function fetchSites() {
+  return check(await supabase.from("sites").select("*").order("sort"));
+}
+export async function fetchFixedCosts() {
+  return check(await supabase.from("fixed_costs").select("*"));
+}
+export async function saveFixedCosts(rows) {
+  return check(await supabase.from("fixed_costs").upsert(rows, { onConflict: "site_id,cost_key" }).select());
+}
+export async function fetchSyncStatus() {
+  return check(await supabase.from("sync_status").select("*").eq("id", 1))[0] ?? null;
+}
+// Ask the server to pull from Hotzonex Cloud now (admin or manager).
+export async function syncNow(options = {}) {
+  const { data } = await supabase.auth.getSession();
+  const res = await fetch("/api/sync", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${data.session?.access_token ?? ""}` },
+    body: JSON.stringify(options),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(body.error || `The sync didn't respond (error ${res.status}).`);
+  return body;
+}
+
+// A day's running costs set by hand. Income is never sent: it only comes from Hotzonex Cloud.
+export async function saveDayCosts(fields, existingId) {
+  const t = supabase.from(TABLES.daily);
+  if (existingId) return check(await t.update({ ...fields, costs_edited: true }).eq("id", existingId).select());
+  return check(await t.insert({ ...fields, income: 0, costs_edited: true }).select());
+}
+export async function resetDayCosts(id) {
+  return check(await supabase.from(TABLES.daily).update({ costs_edited: false }).eq("id", id).select());
+}
+
 // Profiles
 export async function fetchMyProfile(userId) {
   const rows = check(await supabase.from("profiles").select("*").eq("id", userId));

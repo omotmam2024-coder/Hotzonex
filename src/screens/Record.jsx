@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { deleteRow, fetchDaily, fetchPurchases, fetchUsd, saveRow, saveTakings } from "../lib/api";
+import { deleteRow, fetchDaily, fetchPurchases, fetchUsd, resetDayCosts, saveDayCosts, saveRow, syncNow } from "../lib/api";
 import { MONTHS, dateKey, daysInMonth, longDay, monthTitle, rowKey, today as getToday, toRowFields } from "../lib/dates";
 import { ALL_SITES, COST_KEYS, COST_LABELS, LOC, LOCATIONS, PURCHASE_CATEGORIES, can, siteColor } from "../lib/locations";
 import { fmt, fmtUSD, nv, runningCosts } from "../lib/ledger";
@@ -61,7 +61,7 @@ export default function Record({ profile, loc, onPickSite, startDate, reloadKey,
       <div className="page-head">
         <div><h1>Record</h1><p>{LOC[loc].label}</p></div>
         <Segmented label="What to record" value={tab} onChange={setTab}
-          options={[["takings", "Takings"], ["purchase", "Purchase"], ["usd", "USD exchange"]]} />
+          options={[["takings", "Daily figures"], ["purchase", "Purchase"], ["usd", "USD exchange"]]} />
       </div>
       <Banner>{error}</Banner>
       <div className="stack">
@@ -71,14 +71,14 @@ export default function Record({ profile, loc, onPickSite, startDate, reloadKey,
               nextDisabled={isCurrentMonth} prevLabel="Previous month" nextLabel="Next month" />
           </div>
           {!rows ? <Loading /> : tab === "takings"
-            ? <TakingsForm key={dateKey(date) + loc} loc={loc} date={date} setDate={setDate} month={month} rows={rows.daily} onSaved={saved} />
+            ? <TakingsForm key={dateKey(date) + loc + (rows.daily.find((r) => rowKey(r) === dateKey(date))?.id ?? "")} profile={profile} loc={loc} date={date} setDate={setDate} month={month} rows={rows.daily} onSaved={saved} />
             : tab === "purchase"
               ? <PurchaseForm key={`p${dateKey(month)}${loc}${editing?.id ?? ""}`} loc={loc} month={month} editing={editing} onSaved={saved} onCancel={() => setEditing(null)} />
               : <UsdForm key={`u${dateKey(month)}${loc}${editing?.id ?? ""}`} loc={loc} month={month} editing={editing} onSaved={saved} onCancel={() => setEditing(null)} />}
         </section>
         <section className="panel" aria-label="Entries this month">
           {!rows ? <Loading /> : tab === "takings"
-            ? <TakingsList loc={loc} profile={profile} rows={rows.daily} selected={date} onPick={setDate} onDeleted={() => saved("Day deleted")} />
+            ? <TakingsList loc={loc} rows={rows.daily} selected={date} onPick={setDate} />
             : tab === "purchase"
               ? <SimpleList kind="purchases" profile={profile} rows={rows.purchases} month={month} editing={editing} onEdit={setEditing} onDeleted={() => saved("Purchase deleted")}
                   columns={[["Day", (r) => r.day], ["Bought", (r) => <>{r.description}<span className="soft"> – {r.category}</span></>], ["SSP", (r) => fmt(r.amount), true]]}
@@ -92,7 +92,7 @@ export default function Record({ profile, loc, onPickSite, startDate, reloadKey,
   );
 }
 
-/* ── Takings ─────────────────────────────────────────────────────────── */
+/* ── Daily figures (income from Hotzonex Cloud) ──────────────────────── */
 function MonthStrip({ month, date, setDate, recorded }) {
   const t = getToday();
   const dim = daysInMonth(month.getMonth(), month.getFullYear());
@@ -109,36 +109,44 @@ function MonthStrip({ month, date, setDate, recorded }) {
           return (
             <button key={i} type="button" className={`day ${state} ${isToday ? "is-today" : ""}`} disabled={future}
               aria-pressed={d.getTime() === date.getTime()} onClick={() => setDate(d)}
-              aria-label={`${longDay(d)}${done ? ", recorded" : future ? "" : ", not recorded"}`}>
+              aria-label={`${longDay(d)}${done ? ", has sales" : future ? "" : ", no sales"}`}>
               {i + 1}
             </button>
           );
         })}
       </div>
-      <div className="cal-legend"><span className="l-done">Recorded</span><span className="l-missing">Not recorded</span></div>
+      <div className="cal-legend"><span className="l-done">Sales in Hotzonex Cloud</span><span className="l-missing">No sales</span></div>
     </div>
   );
 }
 
-function TakingsForm({ loc, date, setDate, month, rows, onSaved }) {
+function TakingsForm({ profile, loc, date, setDate, month, rows, onSaved }) {
   const existing = rows.find((r) => rowKey(r) === dateKey(date));
-  // Show the site's usual costs, plus any other cost already entered for this day.
-  const keys = COST_KEYS.filter((k) => LOC[loc].expKeys.includes(k) || nv(existing?.[k]) > 0);
-  const [form, setForm] = useState(() => Object.fromEntries(["income", ...COST_KEYS].map((k) => [k, existing ? String(existing[k] ?? "") : ""])));
+  const adjust = can(profile, "canAdjust");
+  const [form, setForm] = useState(() => Object.fromEntries(COST_KEYS.map((k) => [k, existing && nv(existing[k]) ? String(existing[k]) : ""])));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const recorded = useMemo(() => new Set(rows.map(rowKey)), [rows]);
-  const income = nv(form.income), costs = runningCosts(form);
+  const recorded = useMemo(() => new Set(rows.filter((r) => nv(r.income) > 0).map(rowKey)), [rows]);
+  const income = nv(existing?.income), costs = runningCosts(form);
 
   async function save(e) {
     e.preventDefault();
-    if (form.income === "") { setError("Enter the takings for this day. Use 0 if the site took nothing."); return; }
     setBusy(true); setError("");
     try {
-      const fields = { ...toRowFields(date), location: loc, income: nv(form.income) };
+      const fields = { ...toRowFields(date), location: loc };
       for (const k of COST_KEYS) fields[k] = nv(form[k]);
-      await saveTakings(fields, existing?.id);
-      await onSaved(existing ? "Day updated" : "Day saved");
+      await saveDayCosts(fields, existing?.id);
+      await onSaved("Costs saved for this day");
+    } catch (err) { setError(err.message); }
+    finally { setBusy(false); }
+  }
+
+  async function backToAutomatic() {
+    setBusy(true); setError("");
+    try {
+      await resetDayCosts(existing.id);
+      await syncNow({ from: dateKey(date).split("-").map((n) => n.padStart(2, "0")).join("-") });
+      await onSaved("Costs are automatic again");
     } catch (err) { setError(err.message); }
     finally { setBusy(false); }
   }
@@ -147,63 +155,69 @@ function TakingsForm({ loc, date, setDate, month, rows, onSaved }) {
     <>
       <MonthStrip month={month} date={date} setDate={setDate} recorded={recorded} />
       <form onSubmit={save} style={{ marginTop: 20 }}>
-        <h2 style={{ marginBottom: 14 }}>{longDay(date)}{existing && <span className="soft" style={{ fontWeight: 500 }}> – editing</span>}</h2>
-        <div className="fields">
-          <Field label="Taken in (SSP)">
-            {(id) => <MoneyInput id={id} value={form.income} onChange={(v) => setForm((f) => ({ ...f, income: v }))} />}
-          </Field>
-          <div className="fields two">
-            {keys.map((k) => (
-              <Field key={k} label={`${COST_LABELS[k]} (SSP)`}>
-                {(id) => <MoneyInput id={id} value={form[k]} onChange={(v) => setForm((f) => ({ ...f, [k]: v }))} />}
-              </Field>
-            ))}
-          </div>
+        <h2 style={{ marginBottom: 12 }}>{longDay(date)}</h2>
+        <div className="panel" style={{ background: "var(--brand-tint)", border: 0, boxShadow: "none", padding: "14px 16px", marginBottom: 16 }}>
+          <div className="soft" style={{ fontSize: 13 }}>Taken in, from Hotzonex Cloud</div>
+          <div className="today-value" style={{ fontSize: 28 }}>{income ? fmt(income) : "0"}<small>SSP</small></div>
+          {!income && <div className="soft" style={{ fontSize: 13, marginTop: 4 }}>No sales recorded in Hotzonex Cloud for this day.</div>}
+        </div>
+        <div className="fields two">
+          {COST_KEYS.map((k) => (
+            <Field key={k} label={`${COST_LABELS[k]} (SSP)`}>
+              {(id) => adjust
+                ? <MoneyInput id={id} value={form[k]} onChange={(v) => setForm((f) => ({ ...f, [k]: v }))} />
+                : <input id={id} value={nv(form[k]) ? fmt(form[k]) : "0"} readOnly />}
+            </Field>
+          ))}
         </div>
         <p style={{ marginTop: 16 }}>
           Profit for the day: <strong className={income - costs < 0 ? "out" : "in"}>{fmt(income - costs)} SSP</strong>
         </p>
+        <p className="soft" style={{ marginTop: 6, fontSize: 13 }}>
+          {existing?.costs_edited ? "These costs were adjusted by hand, so the automatic sync leaves them alone."
+            : "Costs fill in automatically from Hotzonex Cloud expenses and the fixed daily costs."}
+        </p>
         <Banner>{error}</Banner>
-        <div className="actions">
-          <button className="btn" type="submit" disabled={busy}>{busy ? "Saving…" : existing ? "Update day" : "Save day"}</button>
-        </div>
+        {adjust && (
+          <div className="actions">
+            <button className="btn" type="submit" disabled={busy}>{busy ? "Saving…" : "Save adjusted costs"}</button>
+            {existing?.costs_edited && <button className="btn quiet" type="button" disabled={busy} onClick={backToAutomatic}>Go back to automatic costs</button>}
+          </div>
+        )}
       </form>
     </>
   );
 }
 
-function TakingsList({ loc, profile, rows, selected, onPick, onDeleted }) {
-  const keys = COST_KEYS.filter((k) => LOC[loc].expKeys.includes(k) || rows.some((r) => nv(r[k]) > 0));
-  const [error, setError] = useState("");
-  if (!rows.length) return <div className="empty"><p>No days recorded this month yet.</p></div>;
+function TakingsList({ loc, rows, selected, onPick }) {
+  const keys = COST_KEYS.filter((k) => LOC[loc]?.expKeys.includes(k) || rows.some((r) => nv(r[k]) > 0));
+  if (!rows.length) return <div className="empty"><p>No sales or costs this month yet.</p></div>;
   const total = (k) => rows.reduce((s, r) => s + nv(r[k]), 0);
   const tIncome = total("income"), tCosts = rows.reduce((s, r) => s + runningCosts(r), 0);
   return (
     <>
-      <h2 style={{ marginBottom: 10 }}>{rows.length} {rows.length === 1 ? "day" : "days"} recorded</h2>
-      <Banner>{error}</Banner>
+      <h2 style={{ marginBottom: 10 }}>{monthTitle(new Date(rows[0].year, MONTHS.indexOf(rows[0].month), 1))}</h2>
       <div className="table-wrap">
         <table className="table">
-          <thead><tr><th>Day</th><th className="r">Taken in</th>{keys.map((k) => <th key={k} className="r">{COST_LABELS[k]}</th>)}<th className="r">Profit</th><th><span className="visually-hidden">Actions</span></th></tr></thead>
+          <thead><tr><th>Day</th><th className="r">Taken in</th>{keys.map((k) => <th key={k} className="r">{COST_LABELS[k]}</th>)}<th className="r">Profit</th></tr></thead>
           <tbody>
             {rows.map((r) => {
               const p = nv(r.income) - runningCosts(r);
               const isSel = rowKey(r) === dateKey(selected);
               return (
                 <tr key={r.id} className={isSel ? "is-editing" : ""}>
-                  <td><button type="button" className="link-btn" onClick={() => onPick(new Date(r.year, MONTHS.indexOf(r.month), r.day))}>{r.day}</button></td>
+                  <td>
+                    <button type="button" className="link-btn" onClick={() => onPick(new Date(r.year, MONTHS.indexOf(r.month), r.day))}>{r.day}</button>
+                    {r.costs_edited && <span className="soft" style={{ fontSize: 11, marginLeft: 6 }}>adjusted</span>}
+                  </td>
                   <td className="r">{fmt(r.income)}</td>
                   {keys.map((k) => <td key={k} className="r">{nv(r[k]) ? fmt(r[k]) : "–"}</td>)}
                   <td className={`r ${p < 0 ? "out" : ""}`}>{fmt(p)}</td>
-                  <td>{can(profile, "canDelete") && (
-                    <div className="row-actions"><DeleteButton onDelete={async () => {
-                      try { await deleteRow("daily", r.id); onDeleted(); } catch (e) { setError(e.message); }
-                    }} /></div>)}</td>
                 </tr>
               );
             })}
           </tbody>
-          <tfoot><tr><td>Total</td><td className="r">{fmt(tIncome)}</td>{keys.map((k) => <td key={k} className="r">{fmt(total(k))}</td>)}<td className="r">{fmt(tIncome - tCosts)}</td><td /></tr></tfoot>
+          <tfoot><tr><td>Total</td><td className="r">{fmt(tIncome)}</td>{keys.map((k) => <td key={k} className="r">{fmt(total(k))}</td>)}<td className="r">{fmt(tIncome - tCosts)}</td></tr></tfoot>
         </table>
       </div>
     </>

@@ -58,7 +58,7 @@ export default function Team({ profile, notify }) {
 function PersonForm({ person, isSelf, onDone }) {
   const [form, setForm] = useState({
     name: person?.name ?? "", email: person?.email ?? "", password: "",
-    role: person?.role ?? "staff", location: person?.location ?? "HQ", active: person?.active ?? true,
+    role: person?.role ?? "staff", location: person?.location ?? LOCATIONS[0]?.id, active: person?.active ?? true,
   });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");

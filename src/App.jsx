@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "./lib/supabase";
-import { fetchMyProfile } from "./lib/api";
-import { ALL_SITES, ROLES, can } from "./lib/locations";
+import { fetchMyProfile, fetchSites } from "./lib/api";
+import { ALL_SITES, ROLES, can, setSites } from "./lib/locations";
 import { PALETTES, ThemeContext } from "./lib/palette";
 import { Brand, Icon, Toast } from "./components/ui";
 import SiteTabs from "./components/SiteTabs";
@@ -10,6 +10,7 @@ import Today from "./screens/Today";
 import Record from "./screens/Record";
 import Reports from "./screens/Reports";
 import Team from "./screens/Team";
+import Automation from "./screens/Automation";
 
 /* ── Theme: light unless this device chose dark ────────────────────────── */
 const THEME_KEY = "hotzonex-theme-v2";
@@ -41,13 +42,16 @@ export default function App() {
     if (!session) return;
     let live = true;
     fetchMyProfile(session.user.id)
-      .then((p) => {
+      .then(async (p) => {
         if (!live) return;
         if (!p || !p.active) {
           setNotice(p ? "Your account has been switched off. Ask the Hotzonex admin to turn it back on."
             : "Your account isn't set up yet. Ask the Hotzonex admin to add you in Team.");
           supabase.auth.signOut();
-        } else { setNotice(""); setProfile(p); }
+          return;
+        }
+        setSites(await fetchSites(), p.location); // sites come from Hotzonex Cloud
+        if (live) { setNotice(""); setProfile(p); }
       })
       .catch(() => live && setNotice("Can't load your account. Check your internet connection and sign in again."));
     return () => { live = false; };
@@ -95,10 +99,15 @@ function Shell({ profile, theme, onToggleTheme }) {
     ["reports", "Reports", "reports"],
   ].filter(Boolean);
   const signOut = () => supabase.auth.signOut();
-  const showSites = view !== "team" && view !== "more";
+  const showSites = !["team", "more", "automation"].includes(view);
 
   const extras = (
     <>
+      {can(profile, "canAdjust") && (
+        <button type="button" className="rail-link" aria-current={view === "automation" ? "page" : undefined} onClick={() => go("automation")}>
+          <Icon name="refresh" />Automation
+        </button>
+      )}
       {can(profile, "canManageUsers") && (
         <button type="button" className="rail-link" aria-current={view === "team" ? "page" : undefined} onClick={() => go("team")}>
           <Icon name="team" />Team
@@ -148,6 +157,7 @@ function Shell({ profile, theme, onToggleTheme }) {
           )}
           {view === "reports" && <Reports loc={loc} reloadKey={reloadKey} />}
           {view === "team" && can(profile, "canManageUsers") && <Team profile={profile} notify={notify} />}
+          {view === "automation" && can(profile, "canAdjust") && <Automation profile={profile} notify={notify} onSynced={() => setReloadKey((k) => k + 1)} />}
           {view === "more" && (
             <div>
               <div className="page-head"><div><h1>More</h1><p>Signed in as {profile.name}, {ROLES[profile.role]?.label.toLowerCase()}.</p></div></div>
@@ -160,7 +170,7 @@ function Shell({ profile, theme, onToggleTheme }) {
       <nav className="tabbar" aria-label="Main">
         {[...nav, ["more", "More", "more"]].map(([id, label, icon]) => (
           <button key={id} type="button" className="tab"
-            aria-current={view === id || (id === "more" && view === "team") ? "page" : undefined}
+            aria-current={view === id || (id === "more" && ["team", "automation"].includes(view)) ? "page" : undefined}
             onClick={() => openView(id)}>
             <Icon name={icon} size={22} />{label}
           </button>

@@ -95,28 +95,24 @@ export default function Today({ profile, loc, reloadKey, onRecord }) {
             </>
           ) : (
             <>
-              <div className="today-value empty-state">Not recorded yet</div>
-              <p className="soft" style={{ marginTop: 6 }}>{single ? "Nothing entered for today at this site." : "No site has entered today's takings yet."}</p>
+              <div className="today-value empty-state">No sales yet today</div>
+              <p className="soft" style={{ marginTop: 6 }}>{single ? "Hotzonex Cloud hasn't recorded a sale here today." : "No site has a sale in Hotzonex Cloud today yet."}</p>
             </>
           )}
-          <p className="soft" style={{ marginTop: 12 }}>Yesterday: <strong style={{ color: "var(--text)" }}>{yesterday == null ? "not recorded" : `${fmt(yesterday)} SSP`}</strong></p>
-          {can(profile, "canEdit") && single && (
-            <div className="actions"><button type="button" className="btn" onClick={() => onRecord(t)}>{todayRow ? "Edit today's takings" : "Record today's takings"}</button></div>
+          <p className="soft" style={{ marginTop: 12 }}>Yesterday: <strong style={{ color: "var(--text)" }}>{yesterday == null ? "no sales" : `${fmt(yesterday)} SSP`}</strong></p>
+          <p className="soft" style={{ marginTop: 10, fontSize: 13 }}>Updates by itself from Hotzonex Cloud every 15 minutes.</p>
+          {can(profile, "canAdjust") && single && (
+            <div className="actions"><button type="button" className="btn quiet" onClick={() => onRecord(t)}>See today's costs</button></div>
           )}
         </section>
 
         {single && (
           <section className="panel" aria-labelledby="miss-h">
-            <h2 id="miss-h" style={{ marginBottom: 10 }}>Missing days</h2>
+            <h2 id="miss-h" style={{ marginBottom: 10 }}>Days without sales</h2>
             {missing.length === 0 ? (
-              <p className="soft">Every day this month has been recorded so far.</p>
+              <p className="soft">This site has had sales every day this month.</p>
             ) : (
-              <>
-                <p>{missing.length === 1 ? "1 earlier day this month has" : `${missing.length} earlier days this month have`} no takings recorded: <strong className="orange">{missing.slice(0, 8).map((d) => d.getDate()).join(", ")}{missing.length > 8 ? "…" : ""}</strong></p>
-                {can(profile, "canEdit") && (
-                  <div className="actions"><button type="button" className="btn quiet" onClick={() => onRecord(missing[0])}>Record {shortDay(missing[0])}</button></div>
-                )}
-              </>
+              <p>{missing.length === 1 ? "1 earlier day this month had" : `${missing.length} earlier days this month had`} no sales in Hotzonex Cloud: <strong className="orange">{missing.slice(0, 8).map((d) => d.getDate()).join(", ")}{missing.length > 8 ? "…" : ""}</strong>. Check the site's router if it should have been open.</p>
             )}
           </section>
         )}
@@ -129,11 +125,11 @@ export default function Today({ profile, loc, reloadKey, onRecord }) {
                 <li key={s.id}>
                   <span className="dot" style={{ background: siteColor(s) }} />
                   <span className="grow">{s.label}
-                    <span className="meta">{s.missing == null ? "Nothing recorded this month"
-                      : s.missing ? `${s.missing} earlier ${s.missing === 1 ? "day" : "days"} missing this month` : "Up to date this month"}</span>
+                    <span className="meta">{s.missing == null ? "No sales this month"
+                      : s.missing ? `${s.missing} ${s.missing === 1 ? "day" : "days"} without sales this month` : "Sales every day this month"}</span>
                   </span>
                   <span className="num" style={{ fontWeight: 600, color: s.recorded ? "var(--text)" : "var(--faint)" }}>
-                    {s.recorded ? `${fmt(s.income)} SSP` : "Not recorded"}
+                    {s.recorded ? `${fmt(s.income)} SSP` : "No sales yet"}
                   </span>
                 </li>
               ))}
@@ -155,10 +151,10 @@ function summarise(data, loc, days) {
     const k = rowKey(r), cur = byDay.get(k) ?? { income: 0, costs: 0 };
     byDay.set(k, { income: cur.income + nv(r.income), costs: cur.costs + runningCosts(r) });
   }
-  const todayRow = byDay.get(dateKey(t));
+  const todayRow = byDay.get(dateKey(t))?.income > 0 ? byDay.get(dateKey(t)) : null;
   // Days nobody recorded are left empty, so the lines show a gap there.
   const trend = eachDay(addDays(t, -(days - 1)), t).map((d) => {
-    const v = byDay.get(dateKey(d));
+    const v = byDay.get(dateKey(d))?.income > 0 ? byDay.get(dateKey(d)) : null;
     return { label: days <= 7 ? d.toLocaleDateString("en-GB", { weekday: "short" }) : shortDay(d), income: v ? v.income : null, profit: v ? v.income - v.costs : null };
   });
 
@@ -170,7 +166,7 @@ function summarise(data, loc, days) {
   const lastMtd = statement({ daily: within(daily, lastStart, lastEnd), purchases: within(purchases, lastStart, lastEnd), usd: within(usd, lastStart, lastEnd) });
 
   const missingFor = (rows) => {
-    const have = new Set(rows.map(rowKey));
+    const have = new Set(rows.filter((r) => nv(r.income) > 0).map(rowKey));
     return eachDay(monthStart, addDays(t, -1)).filter((d) => !have.has(dateKey(d)));
   };
   const missing = missingFor(daily);
@@ -180,15 +176,15 @@ function summarise(data, loc, days) {
 
   const sites = LOCATIONS.map((l) => {
     const rows = data.daily.filter((r) => r.location === l.id);
-    const todays = rows.filter((r) => rowKey(r) === dateKey(t));
-    const thisMonth = within(rows, monthStart, t);
+    const todays = rows.filter((r) => rowKey(r) === dateKey(t) && nv(r.income) > 0);
+    const thisMonth = within(rows, monthStart, t).filter((r) => nv(r.income) > 0);
     return { ...l, recorded: todays.length > 0, income: todays.reduce((s, r) => s + nv(r.income), 0),
       missing: thisMonth.length ? missingFor(thisMonth).length : null };
   });
 
   return {
     t, todayRow, todayIncome: todayRow?.income ?? 0, todayKept: todayRow ? todayRow.income - todayRow.costs : 0,
-    yesterday: byDay.get(dateKey(addDays(t, -1)))?.income ?? null,
+    yesterday: byDay.get(dateKey(addDays(t, -1)))?.income || null,
     trend, mtd, lastMtd, missing, sites, bySite,
   };
 }

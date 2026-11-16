@@ -5,7 +5,6 @@ const SUPABASE_URL = "https://prxumouufckubwioywuz.supabase.co";
 const ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InByeHVtb3V1ZmNrdWJ3aW95d3V6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyNDc2NTIsImV4cCI6MjA5NTgyMzY1Mn0.RpK8UmfzQhXVVuuVhsj5QH3HDhwT6RAm0ID0o_MqR7U";
 const ROLES = ["admin", "manager", "staff", "viewer"];
-const SITES = ["HQ", "SUB", "GOROM", "HOME"];
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -28,7 +27,7 @@ async function call(path, { key, token, method = "GET", body, prefer } = {}) {
   return data;
 }
 
-function cleanProfile(body) {
+function cleanProfile(body, siteIds) {
   const out = {};
   if (body.name !== undefined) {
     if (!String(body.name).trim()) throw new HttpError(400, "Enter the person's name.");
@@ -39,7 +38,7 @@ function cleanProfile(body) {
     out.role = body.role;
   }
   if (body.location !== undefined) {
-    if (!SITES.includes(body.location)) throw new HttpError(400, "Choose a site from the list.");
+    if (!siteIds.includes(body.location)) throw new HttpError(400, "Choose a site from the list.");
     out.location = body.location;
   }
   if (body.active !== undefined) out.active = Boolean(body.active);
@@ -63,12 +62,14 @@ export default async function handler(req, res) {
 
     const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {};
     const { action } = body;
+    // Sites come from Hotzonex Cloud (mirrored in the tracker's sites table).
+    const siteIds = (await call("/rest/v1/sites?select=id", { key: service })).map((s) => s.id);
 
     if (action === "create") {
       const email = String(body.email || "").trim().toLowerCase();
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new HttpError(400, "Enter a valid email address.");
       if (String(body.password || "").length < 8) throw new HttpError(400, "Passwords need at least 8 characters.");
-      const profile = cleanProfile({ role: "staff", location: "HQ", active: true, ...body });
+      const profile = cleanProfile({ role: "staff", location: siteIds[0], active: true, ...body }, siteIds);
       if (!profile.name) throw new HttpError(400, "Enter the person's name.");
       const user = await call("/auth/v1/admin/users", { key: service, method: "POST", body: { email, password: body.password, email_confirm: true } });
       await call("/rest/v1/profiles", { key: service, method: "POST", prefer: "return=minimal", body: { id: user.id, email, ...profile } });
@@ -77,7 +78,7 @@ export default async function handler(req, res) {
 
     if (action === "update") {
       if (!UUID.test(String(body.id || ""))) throw new HttpError(400, "Which person?");
-      const profile = cleanProfile(body);
+      const profile = cleanProfile(body, siteIds);
       if (body.id === caller.id) { delete profile.role; delete profile.active; } // can't lock yourself out
       if (body.password) {
         if (String(body.password).length < 8) throw new HttpError(400, "Passwords need at least 8 characters.");
