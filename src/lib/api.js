@@ -96,6 +96,19 @@ export async function resetDayCosts(id) {
   return check(await supabase.from(TABLES.daily).update({ costs_edited: false }).eq("id", id).select());
 }
 
+// Dollar wallet: exchanges (usd_savings) in, spending (usd_spending) out
+export async function fetchUsdSpending() {
+  return check(await supabase.from("usd_spending").select("*").order("spent_on").order("id").limit(5000));
+}
+export async function saveUsdSpending(fields, id) {
+  const t = supabase.from("usd_spending");
+  return check(id ? await t.update(fields).eq("id", id).select() : await t.insert(fields).select());
+}
+export async function deleteUsdSpending(id) {
+  const rows = check(await supabase.from("usd_spending").delete().eq("id", id).select("id"));
+  if (!rows.length) throw new Error("Nothing was deleted. Only an admin can delete records.");
+}
+
 // Profiles
 export async function fetchMyProfile(userId) {
   const rows = check(await supabase.from("profiles").select("*").eq("id", userId));

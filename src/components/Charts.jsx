@@ -84,7 +84,7 @@ export function BarsChart({ data, xKey, series, height = 260 }) {
 }
 
 // Ring chart with the total in the middle. slices: [{ name, value, color }]
-export function DonutChart({ slices, centre, centreLabel, height = 220 }) {
+export function DonutChart({ slices, centre, centreLabel, height = 220, formatValue = (v) => `${fmt(v)} SSP` }) {
   const P = usePalette();
   const shown = slices.filter((s) => s.value > 0);
   return (
@@ -98,7 +98,7 @@ export function DonutChart({ slices, centre, centreLabel, height = 220 }) {
             </Pie>
             {shown.length > 0 && (
               <Tooltip contentStyle={{ background: P.card, border: `1px solid ${P.grid}`, borderRadius: 8, fontSize: 12, color: P.text }}
-                formatter={(v, name) => [`${fmt(v)} SSP`, name]} />
+                formatter={(v, name) => [formatValue(v), name]} />
             )}
           </PieChart>
         </ResponsiveContainer>

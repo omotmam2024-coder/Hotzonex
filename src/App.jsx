@@ -11,6 +11,7 @@ import Record from "./screens/Record";
 import Reports from "./screens/Reports";
 import Team from "./screens/Team";
 import Automation from "./screens/Automation";
+import Dollars from "./screens/Dollars";
 
 /* ── Theme: light unless this device chose dark ────────────────────────── */
 const THEME_KEY = "hotzonex-theme-v2";
@@ -97,9 +98,10 @@ function Shell({ profile, theme, onToggleTheme }) {
     ["today", "Dashboard", "today"],
     can(profile, "canEdit") && ["record", "Record", "record"],
     ["reports", "Reports", "reports"],
+    can(profile, "canViewAll") && ["dollars", "Dollars", "cash"],
   ].filter(Boolean);
   const signOut = () => supabase.auth.signOut();
-  const showSites = !["team", "more", "automation"].includes(view);
+  const showSites = !["team", "more", "automation", "dollars"].includes(view);
 
   const extras = (
     <>
@@ -156,6 +158,7 @@ function Shell({ profile, theme, onToggleTheme }) {
             <Record key={loc} profile={profile} loc={loc} onPickSite={setLoc} startDate={recordDate} reloadKey={reloadKey} notify={notify} />
           )}
           {view === "reports" && <Reports loc={loc} reloadKey={reloadKey} />}
+          {view === "dollars" && can(profile, "canViewAll") && <Dollars profile={profile} reloadKey={reloadKey} notify={notify} />}
           {view === "team" && can(profile, "canManageUsers") && <Team profile={profile} notify={notify} />}
           {view === "automation" && can(profile, "canAdjust") && <Automation profile={profile} notify={notify} onSynced={() => setReloadKey((k) => k + 1)} />}
           {view === "more" && (

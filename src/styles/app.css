@@ -124,7 +124,7 @@ p { margin: 0; max-width: 72ch; }
 .panel-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; margin-bottom: 14px; }
 .grid-2 { display: grid; gap: 20px; }
 .grid-2 > * { min-width: 0; }
-@media (min-width: 960px) { .grid-2 { grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); align-items: stretch; } }
+@media (min-width: 960px) { .grid-2 { grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); align-items: stretch; } .grid-2.even { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; } }
 .grid-3 { display: grid; gap: 20px; }
 .grid-3 > * { min-width: 0; }
 @media (min-width: 960px) { .grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; } .grid-3 > .span-2 { grid-column: span 2; } }

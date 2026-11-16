@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { deleteRow, fetchDaily, fetchPurchases, fetchUsd, resetDayCosts, saveDayCosts, saveRow, syncNow } from "../lib/api";
 import { MONTHS, dateKey, daysInMonth, longDay, monthTitle, rowKey, today as getToday, toRowFields } from "../lib/dates";
 import { ALL_SITES, COST_KEYS, COST_LABELS, LOC, LOCATIONS, PURCHASE_CATEGORIES, can, siteColor } from "../lib/locations";
-import { fmt, fmtUSD, nv, runningCosts } from "../lib/ledger";
+import { fmt, nv, runningCosts } from "../lib/ledger";
 import { Banner, DeleteButton, Field, Loading, Segmented, Stepper } from "../components/ui";
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -61,7 +61,7 @@ export default function Record({ profile, loc, onPickSite, startDate, reloadKey,
       <div className="page-head">
         <div><h1>Record</h1><p>{LOC[loc].label}</p></div>
         <Segmented label="What to record" value={tab} onChange={setTab}
-          options={[["takings", "Daily figures"], ["purchase", "Purchase"], ["usd", "USD exchange"]]} />
+          options={[["takings", "Daily figures"], ["purchase", "Purchase"]]} />
       </div>
       <Banner>{error}</Banner>
       <div className="stack">
@@ -72,20 +72,14 @@ export default function Record({ profile, loc, onPickSite, startDate, reloadKey,
           </div>
           {!rows ? <Loading /> : tab === "takings"
             ? <TakingsForm key={dateKey(date) + loc + (rows.daily.find((r) => rowKey(r) === dateKey(date))?.id ?? "")} profile={profile} loc={loc} date={date} setDate={setDate} month={month} rows={rows.daily} onSaved={saved} />
-            : tab === "purchase"
-              ? <PurchaseForm key={`p${dateKey(month)}${loc}${editing?.id ?? ""}`} loc={loc} month={month} editing={editing} onSaved={saved} onCancel={() => setEditing(null)} />
-              : <UsdForm key={`u${dateKey(month)}${loc}${editing?.id ?? ""}`} loc={loc} month={month} editing={editing} onSaved={saved} onCancel={() => setEditing(null)} />}
+            : <PurchaseForm key={`p${dateKey(month)}${loc}${editing?.id ?? ""}`} loc={loc} month={month} editing={editing} onSaved={saved} onCancel={() => setEditing(null)} />}
         </section>
         <section className="panel" aria-label="Entries this month">
           {!rows ? <Loading /> : tab === "takings"
             ? <TakingsList loc={loc} rows={rows.daily} selected={date} onPick={setDate} />
-            : tab === "purchase"
-              ? <SimpleList kind="purchases" profile={profile} rows={rows.purchases} month={month} editing={editing} onEdit={setEditing} onDeleted={() => saved("Purchase deleted")}
-                  columns={[["Day", (r) => r.day], ["Bought", (r) => <>{r.description}<span className="soft"> – {r.category}</span></>], ["SSP", (r) => fmt(r.amount), true]]}
-                  total={(rs) => fmt(rs.reduce((s, r) => s + nv(r.amount), 0))} empty="No purchases this month." />
-              : <SimpleList kind="usd" profile={profile} rows={rows.usd} month={month} editing={editing} onEdit={setEditing} onDeleted={() => saved("Exchange deleted")}
-                  columns={[["Day", (r) => r.day], ["SSP", (r) => fmt(r.ssp_amount), true], ["Rate", (r) => fmt(r.rate), true], ["USD", (r) => fmtUSD(r.usd_amount), true]]}
-                  total={(rs) => `${fmtUSD(rs.reduce((s, r) => s + nv(r.usd_amount), 0))} bought`} empty="No exchanges this month." />}
+            : <SimpleList kind="purchases" profile={profile} rows={rows.purchases} month={month} editing={editing} onEdit={setEditing} onDeleted={() => saved("Purchase deleted")}
+                columns={[["Day", (r) => r.day], ["Bought", (r) => <>{r.description}<span className="soft"> – {r.category}</span></>], ["SSP", (r) => fmt(r.amount), true]]}
+                total={(rs) => fmt(rs.reduce((s, r) => s + nv(r.amount), 0))} empty="No purchases this month." />}
         </section>
       </div>
     </div>
@@ -283,50 +277,6 @@ function PurchaseForm({ loc, month, editing, onSaved, onCancel }) {
       <Banner>{error}</Banner>
       <div className="actions">
         <button className="btn" type="submit" disabled={busy}>{busy ? "Saving…" : editing ? "Update purchase" : "Save purchase"}</button>
-        {editing && <button className="btn quiet" type="button" onClick={onCancel}>Cancel</button>}
-      </div>
-    </form>
-  );
-}
-
-function UsdForm({ loc, month, editing, onSaved, onCancel }) {
-  const [form, setForm] = useState(() => editing
-    ? { day: editing.day, ssp: String(editing.ssp_amount ?? ""), rate: String(editing.rate ?? ""), notes: editing.notes ?? "" }
-    : { day: defaultDay(month), ssp: "", rate: "", notes: "" });
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }));
-  const usd = nv(form.ssp) > 0 && nv(form.rate) > 0 ? nv(form.ssp) / nv(form.rate) : 0;
-
-  async function save(e) {
-    e.preventDefault();
-    if (nv(form.ssp) <= 0) { setError("Enter how many SSP you exchanged."); return; }
-    if (nv(form.rate) <= 0) { setError("Enter the rate: how many SSP buy 1 US dollar."); return; }
-    setBusy(true); setError("");
-    try {
-      await saveRow("usd", { year: month.getFullYear(), month: MONTHS[month.getMonth()], day: form.day, location: loc,
-        ssp_amount: nv(form.ssp), rate: nv(form.rate), usd_amount: Math.round(usd * 100) / 100, notes: form.notes.trim() }, editing?.id);
-      await onSaved(editing ? "Exchange updated" : "Exchange saved");
-    } catch (err) { setError(err.message); }
-    finally { setBusy(false); }
-  }
-
-  return (
-    <form onSubmit={save}>
-      <h2 style={{ marginBottom: 6 }}>{editing ? "Change this exchange" : "Move cash into USD savings"}</h2>
-      <p className="soft" style={{ marginBottom: 16 }}>This doesn't reduce profit. It shows how much cash went into dollars.</p>
-      <div className="fields">
-        <Field label="Day">{(id) => <DaySelect id={id} month={month} value={form.day} onChange={set("day")} />}</Field>
-        <div className="fields two">
-          <Field label="SSP exchanged">{(id) => <MoneyInput id={id} value={form.ssp} onChange={set("ssp")} />}</Field>
-          <Field label="Rate (SSP for $1)">{(id) => <MoneyInput id={id} value={form.rate} onChange={set("rate")} />}</Field>
-        </div>
-        <Field label="Notes (optional)" hint="For example the bank or exchange used.">{(id) => <input id={id} value={form.notes} onChange={(e) => set("notes")(e.target.value)} />}</Field>
-      </div>
-      <p style={{ marginTop: 16 }}>You receive <strong className="in">{usd ? fmtUSD(usd) : "$0.00"}</strong></p>
-      <Banner>{error}</Banner>
-      <div className="actions">
-        <button className="btn" type="submit" disabled={busy}>{busy ? "Saving…" : editing ? "Update exchange" : "Save exchange"}</button>
         {editing && <button className="btn quiet" type="button" onClick={onCancel}>Cancel</button>}
       </div>
     </form>
