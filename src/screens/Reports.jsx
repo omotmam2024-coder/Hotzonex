@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchLedger } from "../lib/api";
 import { FIRST_YEAR, MONTHS, dateKey, eachDay, periodRange, periodTitle, rowDate, rowKey, shiftPeriod, shortDay, today as getToday } from "../lib/dates";
-import { ALL_SITES, LOCATIONS, siteName } from "../lib/locations";
+import { ALL_SITES, COST_KEYS, COST_LABELS, LOCATIONS, siteName } from "../lib/locations";
 import { change, fmt, fmtPct, statement } from "../lib/ledger";
 import { BarsChart } from "../components/Charts";
 import Kpis from "../components/Kpis";
@@ -184,11 +184,15 @@ function build(data, kind, range, prev, loc) {
     table = { title: "By site", head: ["Site", ...head5], rows, foot: ["All sites", s.income, s.running, s.purchases, s.profit, s.usdSSP, s.cashLeft] };
   } else {
     const unitName = dayBuckets ? "Day" : kind === "year" ? "Month" : "Year";
+    // Each running cost on its own column, so every day can be checked against Hotzonex Cloud.
+    const costCols = COST_KEYS.filter((k) => s.costs[k] > 0);
+    const head = [unitName, "Taken in", ...costCols.map((k) => COST_LABELS[k]), "Running costs", "Purchases", "Profit", "Exchanged to $", "Balance (SSP)"];
+    const line = (st) => [st.income, ...costCols.map((k) => st.costs[k]), st.running, st.purchases, st.profit, st.usdSSP, st.cashLeft];
     const rows = sliced
       .filter((b) => !b.future && (dayBuckets || !b.empty))
       .map((b) => ({ key: b.key, muted: b.empty,
-        cells: b.empty ? [b.label, "Not recorded", "", "", "", "", ""] : [b.label, b.s.income, b.s.running, b.s.purchases, b.s.profit, b.s.usdSSP, b.s.cashLeft] }));
-    table = { title: `By ${unitName.toLowerCase()}`, head: [unitName, ...head5], rows, foot: ["Total", s.income, s.running, s.purchases, s.profit, s.usdSSP, s.cashLeft] };
+        cells: b.empty ? [b.label, "Not recorded", ...Array(head.length - 2).fill("")] : [b.label, ...line(b.s)] }));
+    table = { title: `By ${unitName.toLowerCase()}`, head, rows, foot: ["Total", ...line(s)] };
   }
 
   const nothing = cur.daily.length === 0 && cur.purchases.length === 0 && cur.usd.length === 0;

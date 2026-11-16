@@ -40,9 +40,6 @@ async function tracker(path, { method = "GET", body, prefer, token } = {}) {
 function jubaToday() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Juba", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 }
-function addDays(iso, n) {
-  const d = new Date(`${iso}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10);
-}
 const parts = (iso) => { const [y, m, d] = iso.split("-").map(Number); return { year: y, month: MONTHS[m - 1], day: d }; };
 const keyOf = (site, iso) => `${site}|${iso}`;
 const rowIso = (r) => `${r.year}-${String(MONTHS.indexOf(r.month) + 1).padStart(2, "0")}-${String(r.day).padStart(2, "0")}`;
@@ -158,11 +155,14 @@ export default async function handler(req, res) {
   try {
     if (!["POST", "GET"].includes(req.method)) throw new HttpError(405, "Use POST.");
     if (!service()) throw new HttpError(500, "The server is missing its Supabase key.");
-    const who = await authorise(req);
+    await authorise(req);
     const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : req.body || {};
     const today = jubaToday();
-    // Scheduled runs refresh the last 3 days; people can ask for everything.
-    const from = body.all ? HISTORY_FROM : /^\d{4}-\d{2}-\d{2}$/.test(body.from ?? "") ? body.from : addDays(today, who === "schedule" ? -2 : -6);
+    // Every run re-reads the current and previous month in full, so expenses
+    // entered late in Hotzonex Cloud for earlier days (or corrected, or
+    // deleted) still come through. A nightly run, or an admin, can ask for all.
+    const startOfLastMonth = (() => { const [y, m] = today.split("-").map(Number); return m === 1 ? `${y - 1}-12-01` : `${y}-${String(m - 1).padStart(2, "0")}-01`; })();
+    const from = body.all ? HISTORY_FROM : /^\d{4}-\d{2}-\d{2}$/.test(body.from ?? "") ? body.from : startOfLastMonth;
     window = { from, to: today };
     await setStatus({ last_run_at: new Date().toISOString(), window_from: from, window_to: today });
     const result = await runSync(window);
