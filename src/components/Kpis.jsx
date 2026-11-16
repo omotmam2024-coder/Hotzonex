@@ -33,7 +33,7 @@ export default function Kpis({ s, before, compareLabel = "from last month" }) {
       <Kpi label="Running costs" value={s.running} before={b.running} icon="bolt" color="var(--orange)" goodWhenUp={false} compareLabel={compareLabel} />
       <Kpi label="Purchases" value={s.purchases} before={b.purchases} icon="cart" color="var(--red)" goodWhenUp={false} compareLabel={compareLabel} />
       <Kpi label="Profit" value={s.profit} before={b.profit > 0 ? b.profit : null} icon="trend" color="var(--green)" compareLabel={compareLabel}
-        sub={s.margin != null ? `${Math.round(s.margin)}% of takings kept` : "SSP"} />
+        sub={s.margin != null ? `${Math.round(s.margin)}% of takings kept` : undefined} />
     </div>
   );
 }

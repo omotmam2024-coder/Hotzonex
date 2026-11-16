@@ -69,7 +69,7 @@ export default function Reports({ loc, reloadKey }) {
           : <Stepper title={periodTitle(kind, anchor)} onPrev={() => setAnchor(shiftPeriod(kind, anchor, -1))}
               onNext={() => setAnchor(shiftPeriod(kind, anchor, 1))} nextDisabled={atLatest}
               prevLabel={`Previous ${kind}`} nextLabel={`Next ${kind}`} />}
-        {report && (
+        {report && !report.nothing && (
           <span className="row-actions">
             <button type="button" className="btn quiet small" onClick={() => window.print()}><Icon name="print" size={16} />Print or save PDF</button>
             <button type="button" className="btn quiet small" onClick={exportCsv}><Icon name="download" size={16} />Export CSV</button>
@@ -77,7 +77,12 @@ export default function Reports({ loc, reloadKey }) {
         )}
       </div>
 
-      {!report ? (!error && <Loading />) : (
+      {!report ? (!error && <Loading />) : report.nothing ? (
+        <section className="panel empty" style={{ padding: "48px 20px" }}>
+          <h2 style={{ marginBottom: 6, color: "var(--text)" }}>Nothing recorded for {periodTitle(kind, anchor)}</h2>
+          <p>Takings, purchases and USD exchanges will appear here once they're entered on the Record screen.</p>
+        </section>
+      ) : (
         <div className="stack">
           <Kpis s={report.s} before={report.before} compareLabel={kind === "all" ? undefined : report.partial ? `vs same days ${PREV_LABEL[kind]}` : `from ${PREV_LABEL[kind]}`} />
           <div className="grid-2">
@@ -186,5 +191,6 @@ function build(data, kind, range, prev, loc) {
     table = { title: `By ${unitName.toLowerCase()}`, head: [unitName, ...head5], rows, foot: ["Total", s.income, s.running, s.purchases, s.profit, s.usdSSP] };
   }
 
-  return { s, before, vs, partial, chart, missingCount, table, unit: dayBuckets ? "day" : kind === "year" ? "month" : "year" };
+  const nothing = cur.daily.length === 0 && cur.purchases.length === 0 && cur.usd.length === 0;
+  return { s, before, vs, partial, chart, nothing, missingCount, table, unit: dayBuckets ? "day" : kind === "year" ? "month" : "year" };
 }
