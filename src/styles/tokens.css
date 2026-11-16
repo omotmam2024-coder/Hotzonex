@@ -1,0 +1,63 @@
+:root {
+  color-scheme: light;
+  --paper: #F4F6F5;
+  --sheet: #FFFFFF;
+  --ink: #12233F;
+  --ink-soft: #50607A;
+  --ink-faint: #8794A6;
+  --rule: #D6DDD9;
+  --rule-strong: #B9C3BD;
+  --in: #0B7A5C;
+  --out: #B4471C;
+  --marker: #FFE14D;
+  --marker-from: 52%;          /* where the highlighter band starts under text */
+  --on-ink: #FFFFFF;
+  --focus: #2F5BEA;
+  --danger-bg: #FBEDE6;
+  --ok-bg: #E4F3EC;
+
+  --font: "Schibsted Grotesk", "Segoe UI", system-ui, sans-serif;
+  --t-xs: 13px; --t-s: 15px; --t-m: 18px; --t-l: 24px; --t-xl: 36px; --t-xxl: 56px;
+  --r-panel: 10px; --r-ctl: 6px;
+  --gutter: 16px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper: #0F1A2C;
+    --sheet: #16243A;
+    --ink: #E8EEF2;
+    --ink-soft: #9AAABD;
+    --ink-faint: #6B7C92;
+    --rule: #26364F;
+    --rule-strong: #3A4D6B;
+    --in: #4FD1A5;
+    --out: #F08A5D;
+    --marker: #E8C547;
+    --marker-from: 86%;
+    --on-ink: #0F1A2C;
+    --focus: #8FB0FF;
+    --danger-bg: #3A2320;
+    --ok-bg: #173A31;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #0F1A2C;
+  --sheet: #16243A;
+  --ink: #E8EEF2;
+  --ink-soft: #9AAABD;
+  --ink-faint: #6B7C92;
+  --rule: #26364F;
+  --rule-strong: #3A4D6B;
+  --in: #4FD1A5;
+  --out: #F08A5D;
+  --marker: #E8C547;
+  --marker-from: 86%;
+  --on-ink: #0F1A2C;
+  --focus: #8FB0FF;
+  --danger-bg: #3A2320;
+  --ok-bg: #173A31;
+}
