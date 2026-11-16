@@ -1,17 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchLedger } from "../lib/api";
 import { addDays, dateKey, daysInMonth, eachDay, longDay, monthTitle, rowDate, rowKey, shortDay, today as getToday } from "../lib/dates";
-import { ALL_SITES, LOC, LOCATIONS, can, siteName } from "../lib/locations";
-import { change, fmt, fmtPct, nv, runningCosts, statement } from "../lib/ledger";
-import { TrendChart } from "../components/Charts";
+import { ALL_SITES, COST_KEYS, COST_LABELS, LOCATIONS, can, siteName, siteColor } from "../lib/locations";
+import { fmt, nv, runningCosts, statement } from "../lib/ledger";
+import { DonutChart, TrendChart } from "../components/Charts";
 import Kpis from "../components/Kpis";
 import { Banner, Loading } from "../components/ui";
 
-const WINDOW = 30;
+const COST_COLORS = { internet: "cyan", power: "orange", feeding: "grey", wages: "brand" };
 
 export default function Today({ profile, loc, reloadKey, onRecord }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
+  const [days, setDays] = useState(30);
   const viewAll = can(profile, "canViewAll");
   const fetchLoc = viewAll ? ALL_SITES : profile.location;
 
@@ -25,76 +26,85 @@ export default function Today({ profile, loc, reloadKey, onRecord }) {
     return () => { live = false; };
   }, [fetchLoc, reloadKey]);
 
-  const view = useMemo(() => (data ? summarise(data, loc) : null), [data, loc]);
+  const view = useMemo(() => (data ? summarise(data, loc, days) : null), [data, loc, days]);
 
   if (error && !data) return <Banner>{error}</Banner>;
   if (!view) return <Loading />;
-  const { t, todayRow, todayIncome, todayKept, yesterday, trend, mtd, lastMtd, missing, sites } = view;
+  const { t, todayRow, todayIncome, todayKept, yesterday, trend, mtd, lastMtd, missing, sites, bySite } = view;
   const single = loc !== ALL_SITES;
-  const vs = change(mtd.income, lastMtd.income);
+  const firstName = profile.name.split(" ")[0];
+
+  const donut = single
+    ? {
+        title: "Where the money went",
+        slices: [
+          ...COST_KEYS.filter((k) => mtd.costs[k] > 0).map((k) => ({ name: COST_LABELS[k], value: mtd.costs[k], color: COST_COLORS[k] })),
+          { name: "Purchases", value: mtd.purchases, color: "red" },
+          { name: "Kept as profit", value: Math.max(mtd.profit, 0), color: "green" },
+        ].filter((s) => s.value > 0),
+        centre: fmt(mtd.income), label: "SSP taken in",
+      }
+    : {
+        title: "Takings by site",
+        slices: LOCATIONS.map((l) => ({ name: l.short, value: bySite[l.id] ?? 0, color: l.color })),
+        centre: fmt(mtd.income), label: "SSP this month",
+      };
 
   return (
     <div className="stack">
       <Banner>{error}</Banner>
       <div className="page-head" style={{ marginBottom: 0 }}>
         <div>
-          <h1>Business overview</h1>
-          <p>{longDay(t)}, <span className="site-name" style={{ "--site": LOC[loc]?.hue }}>{siteName(loc)}</span></p>
+          <h1>Dashboard overview</h1>
+          <p>Welcome back, {firstName}. Here's how <span className="site-name">{siteName(loc)}</span> is doing, {longDay(t)}.</p>
         </div>
       </div>
 
-      <div className="hero">
-        <section className="panel today-card" aria-labelledby="today-h">
-          <h2 id="today-h" style={{ fontSize: 14, fontWeight: 600, color: "var(--muted)" }}>Today's takings</h2>
+      <Kpis s={mtd} before={lastMtd} compareLabel="vs same days last month" />
+
+      <div className="grid-2">
+        <section className="panel" aria-labelledby="trend-h">
+          <div className="panel-head">
+            <h2 id="trend-h">Takings trend</h2>
+            <label className="visually-hidden" htmlFor="trend-days">Period</label>
+            <select id="trend-days" className="mini-select" value={days} onChange={(e) => setDays(Number(e.target.value))}>
+              <option value={7}>Last 7 days</option>
+              <option value={14}>Last 14 days</option>
+              <option value={30}>Last 30 days</option>
+            </select>
+          </div>
+          {trend.every((d) => d.income == null)
+            ? <div className="empty" style={{ minHeight: 260, display: "grid", placeContent: "center" }}><p>No takings were recorded in the last {days} days.</p></div>
+            : <TrendChart data={trend} xKey="label"
+                series={[{ key: "income", name: "Taken in (SSP)", color: "brand" }, { key: "profit", name: "Profit after running costs", color: "green" }]} />}
+        </section>
+
+        <section className="panel" aria-labelledby="donut-h">
+          <div className="panel-head"><h2 id="donut-h">{donut.title}</h2><span className="soft">{monthTitle(t)}</span></div>
+          <DonutChart slices={donut.slices} centre={donut.centre} centreLabel={donut.label} />
+        </section>
+      </div>
+
+      <div className="grid-3">
+        <section className="panel" aria-labelledby="today-h">
+          <h2 id="today-h">Today's takings</h2>
           {todayRow ? (
             <>
               <div className="today-value">{fmt(todayIncome)}<small>SSP</small></div>
-              <p style={{ marginTop: 12 }}>
-                <strong className={todayKept < 0 ? "red" : "green"}>{fmt(todayKept)} SSP</strong> kept after today's running costs
-              </p>
+              <p style={{ marginTop: 8 }}><strong className={todayKept < 0 ? "red" : "green"}>{fmt(todayKept)} SSP</strong> kept after today's running costs</p>
             </>
           ) : (
             <>
               <div className="today-value empty-state">Not recorded yet</div>
-              <p className="soft" style={{ marginTop: 10 }}>
-                {single ? "Nothing has been entered for today at this site." : "No site has entered today's takings yet."}
-              </p>
+              <p className="soft" style={{ marginTop: 6 }}>{single ? "Nothing entered for today at this site." : "No site has entered today's takings yet."}</p>
             </>
           )}
-          <p className="soft" style={{ marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--line-soft)" }}>
-            Yesterday: <strong style={{ color: "var(--text)" }}>{yesterday == null ? "not recorded" : `${fmt(yesterday)} SSP`}</strong>
-          </p>
+          <p className="soft" style={{ marginTop: 12 }}>Yesterday: <strong style={{ color: "var(--text)" }}>{yesterday == null ? "not recorded" : `${fmt(yesterday)} SSP`}</strong></p>
           {can(profile, "canEdit") && single && (
-            <div className="actions">
-              <button type="button" className="btn" onClick={() => onRecord(t)}>
-                {todayRow ? "Edit today's takings" : "Record today's takings"}
-              </button>
-            </div>
+            <div className="actions"><button type="button" className="btn" onClick={() => onRecord(t)}>{todayRow ? "Edit today's takings" : "Record today's takings"}</button></div>
           )}
         </section>
 
-        <section className="panel" aria-labelledby="trend-h">
-          <div className="panel-head">
-            <h2 id="trend-h">Last 30 days</h2>
-            <span className="soft">{shortDay(addDays(t, -(WINDOW - 1)))} to today</span>
-          </div>
-          <TrendChart data={trend} xKey="label" height={210}
-            series={[{ key: "income", name: "Taken in", color: "teal" }, { key: "profit", name: "Profit after running costs", color: "green", dashed: true }]} />
-        </section>
-      </div>
-
-      <section aria-labelledby="mtd-h">
-        <div className="panel-head" style={{ marginTop: 8 }}>
-          <h2 id="mtd-h">{monthTitle(t)} so far</h2>
-          <span className="soft">
-            {vs == null ? `${mtd.days} ${mtd.days === 1 ? "day" : "days"} recorded`
-              : <>Takings <strong className={vs < 0 ? "red" : "green"}>{fmtPct(vs)}</strong> on the same days last month ({fmt(lastMtd.income)} SSP)</>}
-          </span>
-        </div>
-        <Kpis s={mtd} />
-      </section>
-
-      <div className="grid-2">
         {single && (
           <section className="panel" aria-labelledby="miss-h">
             <h2 id="miss-h" style={{ marginBottom: 10 }}>Missing days</h2>
@@ -112,17 +122,17 @@ export default function Today({ profile, loc, reloadKey, onRecord }) {
         )}
 
         {viewAll && (
-          <section className="panel" aria-labelledby="sites-h">
-            <h2 id="sites-h" style={{ marginBottom: 6 }}>All sites today</h2>
+          <section className={`panel ${single ? "" : "span-2"}`} aria-labelledby="sites-h">
+            <h2 id="sites-h" style={{ marginBottom: 4 }}>All sites today</h2>
             <ul className="sites">
               {sites.map((s) => (
                 <li key={s.id}>
-                  <span className="dot" style={{ background: s.hue }} />
+                  <span className="dot" style={{ background: siteColor(s) }} />
                   <span className="grow">{s.label}
                     <span className="meta">{s.missing == null ? "Nothing recorded this month"
                       : s.missing ? `${s.missing} earlier ${s.missing === 1 ? "day" : "days"} missing this month` : "Up to date this month"}</span>
                   </span>
-                  <span className="num" style={{ fontWeight: 700, color: s.recorded ? "var(--teal)" : "var(--muted)" }}>
+                  <span className="num" style={{ fontWeight: 600, color: s.recorded ? "var(--text)" : "var(--faint)" }}>
                     {s.recorded ? `${fmt(s.income)} SSP` : "Not recorded"}
                   </span>
                 </li>
@@ -135,7 +145,7 @@ export default function Today({ profile, loc, reloadKey, onRecord }) {
   );
 }
 
-function summarise(data, loc) {
+function summarise(data, loc, days) {
   const t = getToday();
   const pick = (rows) => (loc === ALL_SITES ? rows : rows.filter((r) => r.location === loc));
   const daily = pick(data.daily), purchases = pick(data.purchases), usd = pick(data.usd);
@@ -147,9 +157,9 @@ function summarise(data, loc) {
   }
   const todayRow = byDay.get(dateKey(t));
   // Days nobody recorded are left empty, so the lines show a gap there.
-  const trend = eachDay(addDays(t, -(WINDOW - 1)), t).map((d) => {
+  const trend = eachDay(addDays(t, -(days - 1)), t).map((d) => {
     const v = byDay.get(dateKey(d));
-    return { label: shortDay(d), income: v ? v.income : null, profit: v ? v.income - v.costs : null };
+    return { label: days <= 7 ? d.toLocaleDateString("en-GB", { weekday: "short" }) : shortDay(d), income: v ? v.income : null, profit: v ? v.income - v.costs : null };
   });
 
   const monthStart = new Date(t.getFullYear(), t.getMonth(), 1);
@@ -157,13 +167,16 @@ function summarise(data, loc) {
   const lastEnd = new Date(lastStart.getFullYear(), lastStart.getMonth(), Math.min(t.getDate(), daysInMonth(lastStart.getMonth(), lastStart.getFullYear())));
   const within = (rows, a, b) => rows.filter((r) => { const d = rowDate(r); return d >= a && d <= b; });
   const mtd = statement({ daily: within(daily, monthStart, t), purchases: within(purchases, monthStart, t), usd: within(usd, monthStart, t) });
-  const lastMtd = statement({ daily: within(daily, lastStart, lastEnd) });
+  const lastMtd = statement({ daily: within(daily, lastStart, lastEnd), purchases: within(purchases, lastStart, lastEnd), usd: within(usd, lastStart, lastEnd) });
 
   const missingFor = (rows) => {
     const have = new Set(rows.map(rowKey));
     return eachDay(monthStart, addDays(t, -1)).filter((d) => !have.has(dateKey(d)));
   };
   const missing = missingFor(daily);
+
+  const bySite = {};
+  for (const r of within(data.daily, monthStart, t)) bySite[r.location] = (bySite[r.location] ?? 0) + nv(r.income);
 
   const sites = LOCATIONS.map((l) => {
     const rows = data.daily.filter((r) => r.location === l.id);
@@ -176,6 +189,7 @@ function summarise(data, loc) {
   return {
     t, todayRow, todayIncome: todayRow?.income ?? 0, todayKept: todayRow ? todayRow.income - todayRow.costs : 0,
     yesterday: byDay.get(dateKey(addDays(t, -1)))?.income ?? null,
-    trend, mtd, lastMtd, missing, sites,
+    trend, mtd, lastMtd, missing, sites, bySite,
   };
 }
+

@@ -3,6 +3,12 @@ import { useEffect, useId, useState } from "react";
 const PATHS = {
   today: "M3 3h7v7H3zm11 0h7v7h-7zM3 14h7v7H3zm11 0h7v7h-7z",
   wifi: "M5 12.55a11 11 0 0114.08 0M1.42 9a16 16 0 0121.16 0M8.53 16.11a6 6 0 016.95 0M12 20h.01",
+  cash: "M2 6h20v12H2zM12 15a3 3 0 100-6 3 3 0 000 6zM6 9v.01M18 15v.01",
+  bolt: "M13 2L3 14h9l-1 8 10-12h-9l1-8z",
+  cart: "M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.3 2.3c-.6.6-.2 1.7.7 1.7H17M17 17a2 2 0 100 4 2 2 0 000-4zM9 19a2 2 0 11-4 0 2 2 0 014 0z",
+  trend: "M23 6l-9.5 9.5-5-5L1 18M17 6h6v6",
+  up: "M12 19V5M5 12l7-7 7 7",
+  down: "M12 5v14M19 12l-7 7-7-7",
   record: "M12 5v14M5 12h14",
   reports: "M4 4h16v16H4zM4 9h16M9 9v11",
   more: "M5 12h.01M12 12h.01M19 12h.01",
@@ -27,14 +33,14 @@ export function Icon({ name, size = 20 }) {
   );
 }
 
-// The Hotzonex WiFi mark and wordmark.
-export function Brand({ sub = "Automated tracker", iconSize = 18 }) {
+// The Hotzonex logo mark with the name beside it.
+export function Brand({ sub = "WiFi business tracker" }) {
   return (
     <div className="brand">
-      <span className="brand-mark"><Icon name="wifi" size={iconSize} /></span>
+      <span className="brand-mark"><img src="/logo-mark.png" alt="" width="32" height="32" /></span>
       <span>
-        <span className="brand-name">HOTZONEX <span>WiFi</span></span>
-        {sub && <span className="brand-sub" style={{ display: "block" }}>{sub}</span>}
+        <span className="brand-name">HOTZONEX</span>
+        {sub && <span className="brand-sub">{sub}</span>}
       </span>
     </div>
   );

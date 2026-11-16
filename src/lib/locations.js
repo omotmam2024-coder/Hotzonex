@@ -1,9 +1,9 @@
 // Sites and the running costs each one records.
 export const LOCATIONS = [
-  { id: "HQ",    label: "Jebel Iraq HQ",         short: "HQ",         hue: "#00E5C3", expKeys: ["internet", "power", "feeding", "wages"] },
-  { id: "SUB",   label: "Jebel Iraq Sub-Office", short: "Sub-Office", hue: "#3B82F6", expKeys: ["power", "wages"] },
-  { id: "GOROM", label: "Hotzonex Gorom",        short: "Gorom",      hue: "#F97316", expKeys: ["power", "wages"] },
-  { id: "HOME",  label: "Hotzonex Home",         short: "Home",       hue: "#A78BFA", expKeys: ["internet"] },
+  { id: "HQ",    label: "Jebel Iraq HQ",         short: "HQ",         hue: "#2E3A87", color: "brand", expKeys: ["internet", "power", "feeding", "wages"] },
+  { id: "SUB",   label: "Jebel Iraq Sub-Office", short: "Sub-Office", hue: "#06B6D4", color: "cyan", expKeys: ["power", "wages"] },
+  { id: "GOROM", label: "Hotzonex Gorom",        short: "Gorom",      hue: "#F59E0B", color: "orange", expKeys: ["power", "wages"] },
+  { id: "HOME",  label: "Hotzonex Home",         short: "Home",       hue: "#9CA3AF", color: "grey", expKeys: ["internet"] },
 ];
 export const LOC = Object.fromEntries(LOCATIONS.map((l) => [l.id, l]));
 export const ALL_SITES = "ALL";
@@ -23,5 +23,8 @@ export const ROLES = {
   viewer:  { label: "Viewer",  canDelete: false, canEdit: false, canViewAll: true,  canManageUsers: false },
 };
 export const can = (profile, perm) => Boolean(profile && ROLES[profile.role]?.[perm]);
+
+// A site's colour as a theme-aware CSS value (works in light and dark mode).
+export const siteColor = (l) => `var(--${l?.color === "grey" ? "faint" : l?.color ?? "brand"})`;
 
 export const siteName = (id) => (id === ALL_SITES ? "All sites" : LOC[id]?.label ?? id);

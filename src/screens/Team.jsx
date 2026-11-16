@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchProfiles, teamAction } from "../lib/api";
-import { LOCATIONS, LOC, ROLES } from "../lib/locations";
+import { LOCATIONS, LOC, ROLES, siteColor } from "../lib/locations";
 import { Banner, DeleteButton, Field, Loading } from "../components/ui";
 
 const ROLE_HELP = {
@@ -40,7 +40,7 @@ export default function Team({ profile, notify }) {
           <ul className="sites">
             {people.map((p) => (
               <li key={p.id}>
-                <span className="dot" style={{ background: p.active ? LOC[p.location]?.hue : "var(--faint)" }} />
+                <span className="dot" style={{ background: p.active ? siteColor(LOC[p.location]) : "var(--line)" }} />
                 <span className="grow">
                   <strong>{p.name}</strong>{p.id === profile.id && <span className="soft"> (you)</span>}
                   <span className="meta">{ROLES[p.role]?.label} at {p.role === "staff" ? LOC[p.location]?.label : "all sites"}{p.email ? `, ${p.email}` : ""}{p.active ? "" : ". Can't sign in."}</span>

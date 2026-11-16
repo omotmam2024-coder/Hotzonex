@@ -1,52 +1,66 @@
-/* Dark navy is the default look; light is available from the theme switch.
+/* Light by default (navy-blue sidebar, white cards); dark mode on a switch.
+   Brand blue and orange come from the Hotzonex logo.
    Keep in sync with src/lib/palette.js (used by the charts). */
 :root {
-  color-scheme: dark;
-  --page: #0B1120;
-  --chrome: #0D1526;      /* sidebar and top bar */
-  --card: #111D33;
-  --line: #1A2D4A;
-  --line-soft: #162035;
-  --input: #090F1C;
-  --text: #E2E8F0;
-  --muted: #7D8FB0;
-  --faint: #4B6080;
-  --teal: #00E5C3;        /* income, highlights, primary buttons */
-  --teal-tint: rgba(0, 229, 195, 0.10);
-  --orange: #F97316;      /* running costs */
-  --red: #F05252;         /* purchases, losses */
-  --green: #10B981;       /* profit */
-  --yellow: #FBBF24;      /* USD savings */
-  --blue: #3B82F6;
-  --on-accent: #09111E;
-  --focus: #7FB4FF;
-  --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  color-scheme: light;
+  --page: #F4F6FB;
+  --chrome: #FFFFFF;      /* top bar */
+  --side: #2E3A87;        /* sidebar */
+  --side-text: rgba(255, 255, 255, 0.72);
+  --side-active: rgba(255, 255, 255, 0.14);
+  --card: #FFFFFF;
+  --line: #E5E9F2;
+  --line-soft: #EEF1F6;
+  --input: #F7F8FB;
+  --text: #1F2937;
+  --muted: #6B7280;
+  --faint: #9CA3AF;
+  --brand: #2E3A87;       /* primary buttons, income */
+  --brand-tint: rgba(46, 58, 135, 0.08);
+  --orange: #F59E0B;      /* running costs */
+  --red: #EF4444;         /* purchases, losses */
+  --green: #16A34A;       /* profit, good change */
+  --cyan: #06B6D4;
+  --yellow: #B45309;      /* USD savings */
+  --on-brand: #FFFFFF;
+  --focus: #2563EB;
+  --shadow: 0 1px 3px rgba(16, 24, 40, 0.06), 0 1px 2px rgba(16, 24, 40, 0.04);
+  --shadow-lg: 0 12px 32px rgba(16, 24, 40, 0.12);
+
+  /* older names still used by a few rules */
+  --teal: var(--brand);
+  --teal-tint: var(--brand-tint);
+  --on-accent: var(--on-brand);
 
   --font: "Inter", "Segoe UI", system-ui, sans-serif;
   --t-xs: 12px; --t-s: 14px; --t-m: 17px; --t-l: 24px; --t-xl: 32px;
-  --r-card: 14px; --r-ctl: 8px;
+  --r-card: 12px; --r-ctl: 8px;
   --gutter: 16px;
 }
 
-:root[data-theme="light"] {
-  color-scheme: light;
-  --page: #F0F4F8;
-  --chrome: #FFFFFF;
-  --card: #FFFFFF;
-  --line: #D1DCE8;
-  --line-soft: #E2EAF3;
-  --input: #F8FAFC;
-  --text: #0F172A;
-  --muted: #55667F;
-  --faint: #94A3B8;
-  --teal: #008A76;
-  --teal-tint: rgba(0, 138, 118, 0.10);
-  --orange: #EA580C;
-  --red: #DC2626;
-  --green: #15803D;
-  --yellow: #B45309;
-  --blue: #1D4ED8;
-  --on-accent: #FFFFFF;
-  --focus: #1D4ED8;
-  --shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0B1120;
+  --chrome: #0F172A;
+  --side: #141C3D;
+  --side-text: rgba(226, 232, 240, 0.7);
+  --side-active: rgba(255, 255, 255, 0.08);
+  --card: #111A2E;
+  --line: #1F2A44;
+  --line-soft: #18223A;
+  --input: #0B1324;
+  --text: #E2E8F0;
+  --muted: #94A3B8;
+  --faint: #64748B;
+  --brand: #8B9BFF;
+  --brand-tint: rgba(139, 155, 255, 0.12);
+  --orange: #FBBF24;
+  --red: #F87171;
+  --green: #4ADE80;
+  --cyan: #22D3EE;
+  --yellow: #FBBF24;
+  --on-brand: #0B1120;
+  --focus: #93C5FD;
+  --shadow: none;
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.4);
 }

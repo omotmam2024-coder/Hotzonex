@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { deleteRow, fetchDaily, fetchPurchases, fetchUsd, saveRow, saveTakings } from "../lib/api";
 import { MONTHS, dateKey, daysInMonth, longDay, monthTitle, rowKey, today as getToday, toRowFields } from "../lib/dates";
-import { ALL_SITES, COST_KEYS, COST_LABELS, LOC, LOCATIONS, PURCHASE_CATEGORIES, can } from "../lib/locations";
+import { ALL_SITES, COST_KEYS, COST_LABELS, LOC, LOCATIONS, PURCHASE_CATEGORIES, can, siteColor } from "../lib/locations";
 import { fmt, fmtUSD, nv, runningCosts } from "../lib/ledger";
 import { Banner, DeleteButton, Field, Loading, Segmented, Stepper } from "../components/ui";
 
@@ -37,7 +37,7 @@ export default function Record({ profile, loc, onPickSite, startDate, reloadKey,
         <ul className="sites panel">
           {LOCATIONS.map((l) => (
             <li key={l.id}>
-              <span className="dot" style={{ background: l.hue }} />
+              <span className="dot" style={{ background: siteColor(l) }} />
               <span className="grow">{l.label}</span>
               <button type="button" className="btn quiet small" onClick={() => onPickSite(l.id)}>Record here</button>
             </li>

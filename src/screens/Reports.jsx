@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchLedger } from "../lib/api";
 import { FIRST_YEAR, MONTHS, dateKey, eachDay, periodRange, periodTitle, rowDate, rowKey, shiftPeriod, shortDay, today as getToday } from "../lib/dates";
-import { ALL_SITES, LOC, LOCATIONS, siteName } from "../lib/locations";
+import { ALL_SITES, LOCATIONS, siteName } from "../lib/locations";
 import { change, fmt, fmtPct, statement } from "../lib/ledger";
 import { BarsChart } from "../components/Charts";
 import Kpis from "../components/Kpis";
@@ -10,8 +10,8 @@ import { Banner, Icon, Loading, Segmented, Stepper } from "../components/ui";
 
 const KINDS = [["week", "Week"], ["month", "Month"], ["year", "Year"], ["all", "All years"]];
 const PREV_LABEL = { week: "last week", month: "last month", year: "last year" };
-const TWO = [{ key: "income", name: "Taken in", color: "teal" }, { key: "profit", name: "Profit", color: "green" }];
-const BARS = [{ key: "income", name: "Taken in", color: "teal" }, { key: "costs", name: "Costs and purchases", color: "orange" }, { key: "profit", name: "Profit", color: "green" }];
+const TWO = [{ key: "income", name: "Taken in", color: "brand" }, { key: "profit", name: "Profit", color: "green" }];
+const BARS = [{ key: "income", name: "Taken in", color: "brand" }, { key: "costs", name: "Costs and purchases", color: "orange" }, { key: "profit", name: "Profit", color: "green" }];
 
 export default function Reports({ loc, reloadKey }) {
   const [kind, setKind] = useState("month");
@@ -50,12 +50,15 @@ export default function Reports({ loc, reloadKey }) {
 
   return (
     <div>
-      <div className="print-only" style={{ marginBottom: 16 }}>
-        <h1>Hotzonex report</h1>
-        <p>{siteName(loc)}, {periodTitle(kind, anchor)}. Printed {shortDay(t)} {t.getFullYear()}.</p>
+      <div className="print-only" style={{ marginBottom: 16, alignItems: "center", gap: 16 }}>
+        <img className="print-logo" src="/logo.png" alt="Hotzonex" />
+        <div>
+          <h1>Hotzonex report</h1>
+          <p>{siteName(loc)}, {periodTitle(kind, anchor)}. Printed {shortDay(t)} {t.getFullYear()}.</p>
+        </div>
       </div>
       <div className="page-head no-print">
-        <div><h1>Reports</h1><p className="site-name" style={{ "--site": LOC[loc]?.hue }}>{siteName(loc)}</p></div>
+        <div><h1>Reports</h1><p>Money in and out for <span className="site-name">{siteName(loc)}</span>.</p></div>
         <Segmented label="Period" value={kind} options={KINDS} onChange={(k) => { setKind(k); setAnchor(getToday()); }} />
       </div>
       <Banner>{error}</Banner>
@@ -76,7 +79,7 @@ export default function Reports({ loc, reloadKey }) {
 
       {!report ? (!error && <Loading />) : (
         <div className="stack">
-          <Kpis s={report.s} />
+          <Kpis s={report.s} before={report.before} compareLabel={kind === "all" ? undefined : report.partial ? `vs same days ${PREV_LABEL[kind]}` : `from ${PREV_LABEL[kind]}`} />
           <div className="grid-2">
             <section className="panel" aria-labelledby="st-h">
               <div className="panel-head">
@@ -135,7 +138,7 @@ function build(data, kind, range, prev, loc) {
   const elapsed = Math.round((Math.min(t, range.to) - range.from) / 86400000);
   const prevCut = prev && { from: prev.from, to: new Date(Math.min(prev.to, prev.from.getTime() + elapsed * 86400000)) };
   const partial = range.to > t;
-  const before = prev ? statement({ daily: inRange(data.daily, prevCut) }) : null;
+  const before = prev ? statement({ daily: inRange(data.daily, prevCut), purchases: inRange(data.purchases, prevCut), usd: inRange(data.usd, prevCut) }) : null;
   const vs = before ? change(s.income, before.income) : null;
 
   // Buckets: days for week and month, months for a year, years for all.
@@ -183,5 +186,5 @@ function build(data, kind, range, prev, loc) {
     table = { title: `By ${unitName.toLowerCase()}`, head: [unitName, ...head5], rows, foot: ["Total", s.income, s.running, s.purchases, s.profit, s.usdSSP] };
   }
 
-  return { s, vs, partial, chart, missingCount, table, unit: dayBuckets ? "day" : kind === "year" ? "month" : "year" };
+  return { s, before, vs, partial, chart, missingCount, table, unit: dayBuckets ? "day" : kind === "year" ? "month" : "year" };
 }

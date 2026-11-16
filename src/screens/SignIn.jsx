@@ -29,14 +29,10 @@ export default function SignIn({ notice, theme, onToggleTheme }) {
         <Icon name={theme === "dark" ? "moon" : "sun"} />
       </button>
       <div className="signin-card">
-        <div className="signin-top">
-          <span className="brand-mark"><Icon name="wifi" size={26} /></span>
-          <div className="brand-name">HOTZONEX <span>WiFi</span></div>
-          <div className="brand-sub">Automated business tracker</div>
-        </div>
+        <img className="signin-logo" src="/logo.png" alt="Hotzonex IT Solution and Printing Services" width="220" height="186" />
         <div className="panel">
           <h1>Sign in</h1>
-          <p>Enter your email and password to open your dashboard.</p>
+          <p>Sign in to the Hotzonex WiFi business tracker.</p>
           <Banner>{error || notice}</Banner>
           <form onSubmit={submit} className="fields" noValidate>
             <Field label="Email">

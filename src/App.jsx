@@ -11,18 +11,18 @@ import Record from "./screens/Record";
 import Reports from "./screens/Reports";
 import Team from "./screens/Team";
 
-/* ── Theme: dark navy unless this device chose light ──────────────────── */
-const THEME_KEY = "hotzonex-theme";
-function readTheme() { try { return localStorage.getItem(THEME_KEY) === "light" ? "light" : "dark"; } catch { return "dark"; } }
+/* ── Theme: light unless this device chose dark ────────────────────────── */
+const THEME_KEY = "hotzonex-theme-v2";
+function readTheme() { try { return localStorage.getItem(THEME_KEY) === "dark" ? "dark" : "light"; } catch { return "light"; } }
 function useTheme() {
   const [theme, setTheme] = useState(readTheme);
   useEffect(() => {
-    if (theme === "light") document.documentElement.setAttribute("data-theme", "light");
+    if (theme === "dark") document.documentElement.setAttribute("data-theme", "dark");
     else document.documentElement.removeAttribute("data-theme");
-    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "light" ? "#F0F4F8" : "#0B1120");
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "dark" ? "#0F172A" : "#2E3A87");
     try { localStorage.setItem(THEME_KEY, theme); } catch { /* private mode */ }
   }, [theme]);
-  return [theme, () => setTheme((t) => (t === "dark" ? "light" : "dark"))];
+  return [theme, () => setTheme((t) => (t === "light" ? "dark" : "light"))];
 }
 
 export default function App() {
@@ -116,7 +116,6 @@ function Shell({ profile, theme, onToggleTheme }) {
     <div className="shell">
       <aside className="rail" aria-label="Main">
         <Brand />
-        <div className="who"><strong>{profile.name}</strong><span className="badge">{ROLES[profile.role]?.label}</span></div>
         <nav>
           {nav.map(([id, label, icon]) => (
             <button key={id} type="button" className="rail-link" aria-current={view === id ? "page" : undefined} onClick={() => openView(id)}>
@@ -132,6 +131,13 @@ function Shell({ profile, theme, onToggleTheme }) {
           <Brand sub={null} />
           {showSites ? <SiteTabs profile={profile} value={loc} onChange={setLoc} /> : <span />}
           <span className="spacer" />
+          <div className="me">
+            <span className="me-text" style={{ textAlign: "right" }}>
+              <span className="me-name" style={{ display: "block" }}>{profile.name}</span>
+              <span className="me-role">{ROLES[profile.role]?.label}</span>
+            </span>
+            <span className="avatar" aria-hidden="true">{profile.name.charAt(0).toUpperCase()}</span>
+          </div>
         </header>
         {showSites && <div className="subbar no-print"><SiteTabs profile={profile} value={loc} onChange={setLoc} /></div>}
 
